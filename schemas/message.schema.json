@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.codex/session-control-plane/message.schema.json",
+  "title": "Control Plane Message",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "taskId",
+    "messageId",
+    "sender",
+    "recipient",
+    "type",
+    "createdAt",
+    "payload"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "control-plane-message/v1"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "messageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "replyTo": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sender": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "recipient": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "type": {
+      "enum": [
+        "ASSIGN",
+        "ACK",
+        "STATUS",
+        "QUESTION",
+        "PROPOSAL",
+        "RESULT",
+        "REVIEW",
+        "DECISION",
+        "BLOCKED",
+        "CANCEL"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "maxHops": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 32
+    },
+    "payload": {},
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "threadId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hostId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

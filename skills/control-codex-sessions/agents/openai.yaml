@@ -1,0 +1,13 @@
+interface:
+  display_name: "Codex Session Control Plane"
+  short_description: "Coordinate independent Codex parent sessions safely"
+  brand_color: "#2563EB"
+  default_prompt: "Use $control-codex-sessions to create a dry-run upper-control plan for independent Codex sessions."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "codex_session_control_plane"
+      description: "Persistent App Server session control, relay, review, and dashboard tools"
+      transport: "stdio"
+policy:
+  allow_implicit_invocation: true

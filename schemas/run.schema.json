@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.codex/session-control-plane/run.schema.json",
+  "title": "Control Plane Run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "objective",
+    "status",
+    "executionMode",
+    "createdAt",
+    "updatedAt",
+    "controller",
+    "tasks",
+    "sessions",
+    "messages",
+    "events"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "active",
+        "review",
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "executionMode": {
+      "enum": [
+        "dry-run",
+        "live"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "maxRoundTrips": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role"
+      ],
+      "properties": {
+        "role": {
+          "const": "controller"
+        },
+        "threadId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hostId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/task"
+      }
+    },
+    "sessions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/session"
+      }
+    },
+    "messages": {
+      "type": "array"
+    },
+    "events": {
+      "type": "array"
+    }
+  },
+  "$defs": {
+    "executionProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "effort"
+      ],
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effort": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sandbox": {
+          "enum": [
+            "read-only",
+            "workspace-write",
+            "danger-full-access"
+          ]
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "prompt",
+        "role",
+        "cwd",
+        "status",
+        "profile",
+        "createdAt",
+        "updatedAt",
+        "roundTrips",
+        "artifacts",
+        "verification"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "created",
+            "dispatched",
+            "accepted",
+            "running",
+            "blocked",
+            "review",
+            "completed",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "profile": {
+          "$ref": "#/$defs/executionProfile"
+        },
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "activeTurnId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "roundTrips": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "result": {},
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verification": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "role",
+        "cwd",
+        "status",
+        "profile",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "hostId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "starting",
+            "idle",
+            "active",
+            "blocked",
+            "completed",
+            "failed",
+            "archived"
+          ]
+        },
+        "profile": {
+          "$ref": "#/$defs/executionProfile"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
