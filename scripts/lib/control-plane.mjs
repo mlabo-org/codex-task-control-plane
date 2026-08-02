@@ -1,34 +1,46 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Ledger } from "./ledger.mjs";
-import { AppServerClient } from "./app-server-client.mjs";
 import { makeId, nowIso } from "./ids.mjs";
 import { transition } from "./state-machine.mjs";
+import {
+  MUTATING_THREAD_TOOLS,
+  capabilityReport,
+  createTaskRecord,
+  buildDispatchPreparation,
+  buildNativeOperationIntent,
+  resolveProjectLaunch
+} from "./native-thread-tools.mjs";
 
-const ALLOWED_EFFORTS = new Set([
-  "none",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-  "ultra"
-]);
-
-const ALLOWED_SANDBOXES = new Set([
-  "read-only",
-  "workspace-write",
-  "danger-full-access"
-]);
-
-const ALLOWED_MESSAGE_TYPES = new Set([
+const TERMINAL_TASK_STATES = new Set(["completed", "failed", "cancelled"]);
+const MESSAGE_TYPES = new Set([
+  "ASSIGN",
   "QUESTION",
   "PROPOSAL",
   "STATUS",
   "REVIEW",
+  "RESULT",
   "DECISION",
-  "CANCEL"
+  "CANCEL",
+  "FORK"
+]);
+const OBSERVATION_STATES = new Set([
+  "running",
+  "idle",
+  "completed",
+  "review",
+  "blocked",
+  "needs_attention",
+  "failed",
+  "cancelled"
+]);
+const POST_COMPLETION_TOOLS = new Set([
+  "codex_app__list_threads",
+  "codex_app__read_thread",
+  "codex_app__set_thread_title",
+  "codex_app__set_thread_pinned",
+  "codex_app__set_thread_archived",
+  "codex_app__navigate_to_codex_page"
 ]);
 
 export class ControlPlaneError extends Error {
@@ -41,44 +53,35 @@ export class ControlPlaneError extends Error {
 }
 
 export class ControlPlane {
-  constructor({
-    ledger = new Ledger(),
-    appServerFactory = () => new AppServerClient(),
-    clock = Date
-  } = {}) {
+  constructor({ ledger = new Ledger(), clock = Date } = {}) {
     this.ledger = ledger;
-    this.appServerFactory = appServerFactory;
     this.clock = clock;
-    this.appServer = null;
   }
 
-  async preflight({ cwd = process.cwd(), connect = false } = {}) {
+  async preflight({ cwd = process.cwd(), availableTools = [] } = {}) {
     const absoluteCwd = path.resolve(cwd);
     const stat = await fs.stat(absoluteCwd);
     if (!stat.isDirectory()) {
       throw new ControlPlaneError("INVALID_CWD", `Not a directory: ${absoluteCwd}`);
     }
-
-    const result = {
-      ok: true,
+    const capabilities = capabilityReport(availableTools);
+    return {
+      ok: capabilities.coreReady,
       cwd: absoluteCwd,
       node: process.version,
-      appServerConnected: false,
-      models: [],
+      capabilities,
+      ownership: {
+        nativeTools: "visible Codex task runtime, worktrees, messages, waits, and UI management",
+        controlPlane: "durable intents, bindings, observations, decisions, and audit events",
+        controller: "tool execution, result normalization, integration, and final acceptance"
+      },
       constraints: {
-        liveDispatchRequiresExplicitConfirmation: true,
-        approvals: "never",
-        defaultSandbox: "workspace-write"
+        pluginInvokesNativeTools: false,
+        liveMutationRequiresExplicitConfirmation: true,
+        modelOverrideRequiresExplicitUserAuthority: true,
+        missingDirectStopTool: true
       }
     };
-
-    if (connect) {
-      const client = await this.#client();
-      const models = await client.listModels();
-      result.appServerConnected = true;
-      result.models = normalizeModelList(models);
-    }
-    return result;
   }
 
   async createRun({
@@ -88,16 +91,27 @@ export class ControlPlane {
     executionMode = "dry-run",
     maxRoundTrips = 8
   }) {
-    if (typeof objective !== "string" || !objective.trim()) {
-      throw new ControlPlaneError("INVALID_OBJECTIVE", "A non-empty objective is required");
+    requireText(objective, "objective");
+    for (const [name, value] of [
+      ["controllerThreadId", controllerThreadId],
+      ["controllerHostId", controllerHostId]
+    ]) {
+      if (value != null && (typeof value !== "string" || !value.trim())) {
+        throw new ControlPlaneError("INVALID_CONTROLLER_ADDRESS", `${name} must be a string or null`);
+      }
     }
     if (!["dry-run", "live"].includes(executionMode)) {
-      throw new ControlPlaneError("INVALID_EXECUTION_MODE", `Unsupported mode: ${executionMode}`);
+      throw new ControlPlaneError(
+        "INVALID_EXECUTION_MODE",
+        `Unsupported execution mode: ${executionMode}`
+      );
     }
     if (!Number.isInteger(maxRoundTrips) || maxRoundTrips < 1 || maxRoundTrips > 64) {
-      throw new ControlPlaneError("INVALID_MAX_ROUNDS", "maxRoundTrips must be an integer from 1 to 64");
+      throw new ControlPlaneError(
+        "INVALID_MAX_ROUNDS",
+        "maxRoundTrips must be an integer from 1 to 64"
+      );
     }
-
     const id = makeId("run");
     const at = nowIso(this.clock);
     const run = {
@@ -110,17 +124,15 @@ export class ControlPlane {
       maxRoundTrips,
       controller: {
         role: "controller",
-        threadId: controllerThreadId,
-        hostId: controllerHostId
+        threadId: optionalText(controllerThreadId),
+        hostId: optionalText(controllerHostId)
       },
       tasks: {},
-      sessions: {},
+      threads: {},
+      operations: {},
       messages: [],
-      events: [
-        event("RUN_CREATED", "Control run created", { executionMode }, at)
-      ]
+      events: [event("RUN_CREATED", "Thread-orchestration run created", { executionMode }, at)]
     };
-
     await this.ledger.update((draft) => {
       draft.runs[id] = run;
       return { runId: id };
@@ -128,525 +140,555 @@ export class ControlPlane {
     return structuredClone(run);
   }
 
-  async addTask({
-    runId,
-    title,
-    prompt,
-    role,
-    cwd,
-    model,
-    effort = "medium",
-    sandbox = "workspace-write"
-  }) {
-    validateTaskInput({ title, prompt, role, cwd, model, effort, sandbox });
-    const absoluteCwd = path.resolve(cwd);
+  async addTask(input) {
+    const at = nowIso(this.clock);
+    requireText(input.cwd, "cwd");
+    const absoluteCwd = path.resolve(input.cwd);
     const stat = await fs.stat(absoluteCwd);
     if (!stat.isDirectory()) {
       throw new ControlPlaneError("INVALID_CWD", `Not a directory: ${absoluteCwd}`);
     }
-
-    const taskId = makeId("task");
-    const at = nowIso(this.clock);
-    const task = {
-      id: taskId,
-      title: title.trim(),
-      prompt: prompt.trim(),
-      role: role.trim(),
-      cwd: absoluteCwd,
-      status: "created",
-      profile: { model, effort, sandbox },
-      sessionId: null,
-      activeTurnId: null,
-      createdAt: at,
-      updatedAt: at,
-      roundTrips: 0,
-      result: null,
-      error: null,
-      artifacts: [],
-      verification: []
-    };
-
+    let task;
+    try {
+      task = createTaskRecord(
+        { ...input, cwd: absoluteCwd },
+        { id: makeId("task"), at }
+      );
+    } catch (error) {
+      throw asControlPlaneError(error);
+    }
     await this.ledger.update((draft) => {
-      const run = requireRun(draft, runId);
+      const run = requireRun(draft, input.runId);
       requireRunOpen(run);
-      run.tasks[taskId] = task;
-      run.updatedAt = at;
-      run.events.push(event("TASK_CREATED", `Task created: ${task.title}`, { taskId }, at));
-      return { taskId };
+      run.tasks[task.id] = task;
+      touchRun(run, at);
+      run.events.push(event("TASK_CREATED", `Task created: ${task.title}`, { taskId: task.id }, at));
+      return { taskId: task.id };
     });
     return structuredClone(task);
   }
 
-  async previewDispatch({ runId, taskId }) {
-    const { run, task } = await this.#readTask(runId, taskId);
-    return {
-      live: run.executionMode === "live",
-      requiresConfirmation: true,
-      threadStart: threadStartParams(run, task),
-      turnStart: {
-        threadId: "<created-thread-id>",
-        input: [{ type: "text", text: assignmentPrompt(run, task) }],
-        model: task.profile.model,
-        effort: task.profile.effort,
-        sandboxPolicy: sandboxPolicy(task),
-        approvalPolicy: "never",
-        outputSchema: workerOutputSchema()
-      }
-    };
-  }
-
-  async dispatchTask({ runId, taskId, confirmLiveDispatch = false }) {
-    const { run, task } = await this.#readTask(runId, taskId);
-    if (run.executionMode !== "live") {
-      throw new ControlPlaneError(
-        "DRY_RUN_ONLY",
-        "This run is dry-run. Create a live run before dispatching real Codex sessions."
-      );
-    }
-    if (confirmLiveDispatch !== true) {
-      throw new ControlPlaneError(
-        "LIVE_CONFIRMATION_REQUIRED",
-        "Live thread creation requires confirmLiveDispatch=true from an explicit user request"
-      );
-    }
-    if (!["created", "failed", "blocked", "review"].includes(task.status)) {
-      throw new ControlPlaneError("TASK_NOT_DISPATCHABLE", `Task is ${task.status}`);
-    }
-
-    const client = await this.#client();
-    const started = await client.startThread(threadStartParams(run, task));
-    const threadId = started?.thread?.id;
-    if (!threadId) {
-      throw new ControlPlaneError("THREAD_START_FAILED", "thread/start returned no thread id", started);
-    }
-
-    await client.setThreadName(threadId, `[Control] ${task.role}: ${task.title}`).catch(() => null);
-    const turn = await client.startTurn({
-      threadId,
-      input: [{ type: "text", text: assignmentPrompt(run, task) }],
-      model: task.profile.model,
-      effort: task.profile.effort,
-      sandboxPolicy: sandboxPolicy(task),
-      approvalPolicy: "never",
-      outputSchema: workerOutputSchema()
-    });
-    const turnId = turn?.turn?.id || null;
+  async prepareDispatch({ runId, taskId }) {
     const at = nowIso(this.clock);
-
+    let response;
     await this.ledger.update((draft) => {
-      const draftRun = requireRun(draft, runId);
-      const draftTask = requireTask(draftRun, taskId);
-      transition(draftTask, "task", "dispatched", at);
-      transition(draftTask, "task", "running", at);
-      draftTask.sessionId = threadId;
-      draftTask.activeTurnId = turnId;
-      draftTask.roundTrips += 1;
-
-      draftRun.sessions[threadId] = {
-        id: threadId,
-        hostId: null,
-        role: draftTask.role,
-        cwd: draftTask.cwd,
-        status: "active",
-        profile: structuredClone(draftTask.profile),
-        createdAt: at,
-        updatedAt: at
-      };
-      draftRun.messages.push(
-        messageEnvelope(draftRun, draftTask, "ASSIGN", draftTask.prompt, null, at)
-      );
-      draftRun.updatedAt = at;
-      draftRun.events.push(
-        event("TASK_DISPATCHED", `Task dispatched to ${threadId}`, { taskId, threadId, turnId }, at)
-      );
-    });
-
-    return { runId, taskId, threadId, turnId, status: "running" };
-  }
-
-  async sendMessage({
-    runId,
-    taskId,
-    text,
-    type = "QUESTION",
-    model,
-    effort,
-    confirmLiveDispatch = false
-  }) {
-    if (typeof text !== "string" || !text.trim()) {
-      throw new ControlPlaneError("INVALID_MESSAGE", "A non-empty message is required");
-    }
-    if (!ALLOWED_MESSAGE_TYPES.has(type)) {
-      throw new ControlPlaneError("INVALID_MESSAGE_TYPE", `Unsupported message type: ${type}`);
-    }
-    const { run, task } = await this.#readTask(runId, taskId);
-    if (run.executionMode !== "live" || confirmLiveDispatch !== true) {
-      throw new ControlPlaneError(
-        "LIVE_CONFIRMATION_REQUIRED",
-        "Sending a live follow-up requires a live run and confirmLiveDispatch=true"
-      );
-    }
-    if (!task.sessionId) {
-      throw new ControlPlaneError("NO_SESSION", "Task has no assigned session");
-    }
-    if (!["review", "blocked", "dispatched"].includes(task.status)) {
-      throw new ControlPlaneError(
-        "TASK_NOT_READY_FOR_MESSAGE",
-        `Task must be idle before a follow-up; current status is ${task.status}`
-      );
-    }
-    if (task.roundTrips >= run.maxRoundTrips) {
-      throw new ControlPlaneError("ROUND_LIMIT", "Maximum task round trips reached");
-    }
-
-    const selectedModel = model || task.profile.model;
-    const selectedEffort = effort || task.profile.effort;
-    if (!ALLOWED_EFFORTS.has(selectedEffort)) {
-      throw new ControlPlaneError("INVALID_EFFORT", `Unsupported effort: ${selectedEffort}`);
-    }
-    const client = await this.#client();
-    const turn = await client.startTurn({
-      threadId: task.sessionId,
-      input: [{ type: "text", text: text.trim() }],
-      model: selectedModel,
-      effort: selectedEffort,
-      sandboxPolicy: sandboxPolicy(task),
-      approvalPolicy: "never",
-      outputSchema: workerOutputSchema()
-    });
-    const turnId = turn?.turn?.id || null;
-    const at = nowIso(this.clock);
-    await this.ledger.update((draft) => {
-      const draftRun = requireRun(draft, runId);
-      const draftTask = requireTask(draftRun, taskId);
-      if (draftTask.status === "review") {
-        transition(draftTask, "task", "dispatched", at);
-        transition(draftTask, "task", "running", at);
-      } else if (draftTask.status === "blocked") {
-        transition(draftTask, "task", "running", at);
-      } else if (draftTask.status === "dispatched") {
-        transition(draftTask, "task", "running", at);
+      const run = requireRun(draft, runId);
+      requireRunOpen(run);
+      const task = requireTask(run, taskId);
+      if (!["created", "failed"].includes(task.status)) {
+        throw new ControlPlaneError(
+          "TASK_NOT_PREPARABLE",
+          `Task ${task.id} cannot prepare a new task from ${task.status}`
+        );
       }
-      draftTask.activeTurnId = turnId;
-      draftTask.roundTrips += 1;
-      const session = draftRun.sessions[draftTask.sessionId];
-      if (session && session.status === "idle") transition(session, "session", "active", at);
-      draftRun.messages.push(messageEnvelope(draftRun, draftTask, type, text.trim(), null, at));
-      draftRun.updatedAt = at;
-      draftRun.events.push(
-        event("MESSAGE_SENT", `Follow-up sent to ${draftTask.sessionId}`, { taskId, turnId }, at)
-      );
-    });
-    return { runId, taskId, threadId: task.sessionId, turnId };
-  }
-
-  async relayMessage({
-    runId,
-    fromTaskId,
-    toTaskId,
-    text,
-    type = "PROPOSAL",
-    confirmLiveDispatch = false
-  }) {
-    if (fromTaskId === toTaskId) {
-      throw new ControlPlaneError("INVALID_RELAY", "Relay source and recipient must be different");
-    }
-    if (typeof text !== "string" || !text.trim()) {
-      throw new ControlPlaneError("INVALID_MESSAGE", "A non-empty relay message is required");
-    }
-    if (!ALLOWED_MESSAGE_TYPES.has(type)) {
-      throw new ControlPlaneError("INVALID_MESSAGE_TYPE", `Unsupported message type: ${type}`);
-    }
-    const ledger = await this.ledger.read();
-    const run = requireRun(ledger, runId);
-    const sourceTask = requireTask(run, fromTaskId);
-    const targetTask = requireTask(run, toTaskId);
-    if (run.executionMode !== "live" || confirmLiveDispatch !== true) {
-      throw new ControlPlaneError(
-        "LIVE_CONFIRMATION_REQUIRED",
-        "Relaying between live sessions requires confirmLiveDispatch=true"
-      );
-    }
-    if (!sourceTask.sessionId || !targetTask.sessionId) {
-      throw new ControlPlaneError(
-        "NO_SESSION",
-        "Both relay source and recipient must have assigned sessions"
-      );
-    }
-    if (!["review", "blocked", "dispatched"].includes(targetTask.status)) {
-      throw new ControlPlaneError(
-        "RECIPIENT_NOT_IDLE",
-        `Relay recipient must be idle; current status is ${targetTask.status}`
-      );
-    }
-    if (targetTask.roundTrips >= run.maxRoundTrips) {
-      throw new ControlPlaneError("ROUND_LIMIT", "Maximum recipient round trips reached");
-    }
-
-    const client = await this.#client();
-    const turn = await client.startTurn({
-      threadId: targetTask.sessionId,
-      input: [
-        {
-          type: "text",
-          text: relayPrompt(run, sourceTask, targetTask, type, text.trim())
+      const preparation = buildDispatchPreparation(run, task);
+      const operation = createOperation({
+        id: makeId("op"),
+        kind: "dispatch",
+        tool: "codex_app__create_thread",
+        taskIds: [task.id],
+        phase: "project_lookup",
+        argumentsValue: null,
+        at,
+        metadata: {
+          projectLookup: preparation.projectLookup,
+          createThreadTemplate: preparation.createThreadTemplate
         }
-      ],
-      model: targetTask.profile.model,
-      effort: targetTask.profile.effort,
-      sandboxPolicy: sandboxPolicy(targetTask),
-      approvalPolicy: "never",
-      outputSchema: workerOutputSchema()
-    });
-    const turnId = turn?.turn?.id || null;
-    const at = nowIso(this.clock);
-    await this.ledger.update((draft) => {
-      const draftRun = requireRun(draft, runId);
-      const draftSource = requireTask(draftRun, fromTaskId);
-      const draftTarget = requireTask(draftRun, toTaskId);
-      if (draftTarget.status === "review") {
-        transition(draftTarget, "task", "dispatched", at);
-        transition(draftTarget, "task", "running", at);
-      } else {
-        transition(draftTarget, "task", "running", at);
-      }
-      draftTarget.activeTurnId = turnId;
-      draftTarget.roundTrips += 1;
-      const session = draftRun.sessions[draftTarget.sessionId];
-      if (session?.status === "idle" || session?.status === "blocked") {
-        transition(session, "session", "active", at);
-      }
-      draftRun.messages.push(
-        messageEnvelope(draftRun, draftTarget, type, text.trim(), null, at, {
-          senderTask: draftSource
-        })
-      );
-      draftRun.updatedAt = at;
-      draftRun.events.push(
+      });
+      transition(task, "task", "prepared", at);
+      task.threadTitle = preparation.threadTitle;
+      task.error = null;
+      run.operations[operation.id] = operation;
+      touchRun(run, at);
+      recalculateRun(run, at);
+      run.events.push(
         event(
-          "MESSAGE_RELAYED",
-          `Relayed ${draftSource.sessionId} -> ${draftTarget.sessionId}`,
-          { fromTaskId, toTaskId, turnId, type },
+          "DISPATCH_PREPARED",
+          `Project lookup prepared for ${task.title}`,
+          { taskId, operationId: operation.id },
           at
         )
       );
+      response = {
+        operation: structuredClone(operation),
+        executable: run.executionMode === "live",
+        nextCall: structuredClone(preparation.projectLookup)
+      };
     });
-    return {
-      runId,
-      fromTaskId,
-      toTaskId,
-      fromThreadId: sourceTask.sessionId,
-      toThreadId: targetTask.sessionId,
-      turnId
-    };
+    return response;
   }
 
-  async pollTask({ runId, taskId }) {
-    const { task } = await this.#readTask(runId, taskId);
-    if (!task.sessionId) {
-      throw new ControlPlaneError("NO_SESSION", "Task has no assigned session");
-    }
-    const client = await this.#client();
-    const response = await client.readThread(task.sessionId, true);
-    const observed = observeThread(response?.thread);
+  async resolveProject({ runId, operationId, project, confirmLiveAction = false }) {
     const at = nowIso(this.clock);
-
+    let response;
     await this.ledger.update((draft) => {
       const run = requireRun(draft, runId);
-      const draftTask = requireTask(run, taskId);
-      const session = run.sessions[draftTask.sessionId];
-      draftTask.updatedAt = at;
-      if (observed.error) {
-        if (draftTask.status === "running") transition(draftTask, "task", "failed", at);
-        draftTask.error = observed.error;
-        if (session?.status === "active") transition(session, "session", "failed", at);
-      } else if (observed.completed && draftTask.status === "running") {
-        draftTask.activeTurnId = null;
-        draftTask.result = observed.result;
-        draftTask.artifacts = observed.artifacts;
-        draftTask.verification = observed.verification;
-        const reportedStatus = observed.result?.status;
-        if (reportedStatus === "blocked") {
-          transition(draftTask, "task", "blocked", at);
-          if (session?.status === "active") transition(session, "session", "blocked", at);
-          run.messages.push(
-            messageEnvelope(run, draftTask, "BLOCKED", observed.result, null, at, {
-              artifacts: observed.artifacts,
-              verification: observed.verification
-            })
-          );
-          run.events.push(
-            event("TASK_BLOCKED", `Task blocked: ${draftTask.title}`, { taskId }, at)
-          );
-        } else if (reportedStatus === "failed") {
-          transition(draftTask, "task", "failed", at);
-          draftTask.error = observed.result?.summary || "Worker reported failure";
-          if (session?.status === "active") transition(session, "session", "failed", at);
-          run.messages.push(
-            messageEnvelope(run, draftTask, "RESULT", observed.result, null, at, {
-              artifacts: observed.artifacts,
-              verification: observed.verification
-            })
-          );
-          run.events.push(
-            event("TASK_FAILED", `Task failed: ${draftTask.title}`, { taskId }, at)
-          );
-          settleRun(run, at);
-        } else {
-          transition(draftTask, "task", "review", at);
-          if (session?.status === "active") transition(session, "session", "idle", at);
-          run.messages.push(
-            messageEnvelope(run, draftTask, "RESULT", observed.result, null, at, {
-              artifacts: observed.artifacts,
-              verification: observed.verification
-            })
-          );
-          run.events.push(
-            event("RESULT_READY", `Task ready for review: ${draftTask.title}`, { taskId }, at)
-          );
-        }
-      } else {
-        run.events.push(
-          event("TASK_POLLED", `Task status observed: ${observed.status}`, { taskId }, at)
+      requireRunOpen(run);
+      const operation = requireOperation(run, operationId);
+      if (
+        operation.kind !== "dispatch" ||
+        operation.tool !== "codex_app__create_thread" ||
+        operation.phase !== "project_lookup" ||
+        operation.status !== "prepared"
+      ) {
+        throw new ControlPlaneError(
+          "DISPATCH_NOT_WAITING_FOR_PROJECT",
+          `Operation ${operationId} is not awaiting project resolution`
         );
       }
-      run.updatedAt = at;
+      requireLiveConfirmation(run, confirmLiveAction, "task creation");
+      const task = requireTask(run, operation.taskIds[0]);
+      const launch = resolveProjectLaunch(task, operation.metadata, project);
+      operation.arguments = launch.arguments;
+      operation.phase = "ready";
+      operation.project = launch.project;
+      operation.confirmedAt = run.executionMode === "live" ? at : null;
+      operation.updatedAt = at;
+      task.project = structuredClone(launch.project);
+      touchRun(run, at);
+      recalculateRun(run, at);
+      run.events.push(
+        event(
+          "PROJECT_RESOLVED",
+          `Native task target resolved for ${task.title}`,
+          { taskId: task.id, operationId, projectId: launch.project.projectId },
+          at
+        )
+      );
+      response = {
+        operation: structuredClone(operation),
+        executable: run.executionMode === "live",
+        nextCall: { tool: launch.tool, arguments: structuredClone(launch.arguments) }
+      };
     });
-    return { runId, taskId, ...observed };
+    return response;
+  }
+
+  async recordThreadLaunch({ runId, operationId, result = null, error = null }) {
+    const at = nowIso(this.clock);
+    let response;
+    await this.ledger.update((draft) => {
+      const run = requireRun(draft, runId);
+      const operation = requireOperation(run, operationId);
+      if (
+        !["codex_app__create_thread", "codex_app__fork_thread"].includes(operation.tool) ||
+        operation.status !== "prepared" ||
+        operation.phase !== "ready"
+      ) {
+        throw new ControlPlaneError(
+          "LAUNCH_NOT_RECORDABLE",
+          `Operation ${operationId} is not a ready task launch`
+        );
+      }
+      if (run.executionMode !== "live") {
+        throw new ControlPlaneError("DRY_RUN_ONLY", "A dry-run cannot record a native task launch");
+      }
+      const targetTaskId = operation.childTaskId || operation.taskIds[0];
+      const task = requireTask(run, targetTaskId);
+      const normalizedError = normalizeError(error || result?.error);
+      if (normalizedError || result?.status === "failed") {
+        transition(operation, "operation", "failed", at);
+        operation.error = normalizedError || { code: "NATIVE_CALL_FAILED", message: "Task launch failed" };
+        transition(task, "task", "failed", at);
+        task.error = structuredClone(operation.error);
+        touchRun(run, at);
+        recalculateRun(run, at);
+        response = { operation: structuredClone(operation), task: structuredClone(task) };
+        return;
+      }
+      const threadId = optionalText(result?.threadId);
+      const clientThreadId = optionalText(result?.clientThreadId);
+      if (!threadId && !clientThreadId) {
+        throw new ControlPlaneError(
+          "MISSING_THREAD_IDENTIFIER",
+          "A successful native launch must return threadId or clientThreadId"
+        );
+      }
+      const hostId = optionalText(result?.hostId || task.project?.hostId);
+      task.threadId = threadId;
+      task.hostId = hostId;
+      task.clientThreadId = clientThreadId;
+      task.roundTrips += operation.tool === "codex_app__create_thread" ? 1 : 0;
+      transition(task, "task", threadId ? (operation.childTaskId ? "idle" : "running") : "provisioning", at);
+      const thread = makeThreadRecord({
+        task,
+        threadId,
+        hostId,
+        clientThreadId,
+        status: threadId ? (operation.childTaskId ? "idle" : "active") : "provisioning",
+        at
+      });
+      run.threads[threadKey(thread)] = thread;
+      transition(operation, "operation", "succeeded", at);
+      operation.result = {
+        threadId,
+        hostId,
+        clientThreadId,
+        queued: !threadId
+      };
+      if (operation.tool === "codex_app__create_thread") {
+        run.messages.push(
+          messageEnvelope(run, task, "ASSIGN", task.prompt, {
+            senderTaskId: null,
+            recipientTaskId: task.id
+          }, at)
+        );
+      } else {
+        run.messages.push(
+          messageEnvelope(run, task, "FORK", `Forked from task ${task.sourceTaskId}`, {
+            senderTaskId: task.sourceTaskId,
+            recipientTaskId: task.id
+          }, at)
+        );
+      }
+      touchRun(run, at);
+      recalculateRun(run, at);
+      run.events.push(
+        event(
+          threadId ? "THREAD_BOUND" : "THREAD_PROVISIONING",
+          threadId ? `Task bound to ${threadId}` : `Task queued as ${clientThreadId}`,
+          { taskId: task.id, operationId, threadId, clientThreadId },
+          at
+        )
+      );
+      response = {
+        operation: structuredClone(operation),
+        task: structuredClone(task),
+        thread: structuredClone(thread),
+        next:
+          threadId || !clientThreadId
+            ? null
+            : {
+                tool: "codex_app__list_threads",
+                purpose: "Resolve the queued task by exact generated title before binding"
+              }
+      };
+    });
+    return response;
+  }
+
+  async prepareOperation({
+    runId,
+    tool,
+    input = {},
+    confirmLiveAction = false
+  }) {
+    const at = nowIso(this.clock);
+    let response;
+    await this.ledger.update((draft) => {
+      const run = requireRun(draft, runId);
+      if (["completed", "cancelled"].includes(run.status) && !POST_COMPLETION_TOOLS.has(tool)) {
+        throw new ControlPlaneError(
+          "RUN_CLOSED",
+          `Run ${run.id} is ${run.status}; only read and organization operations remain available`
+        );
+      }
+      if (MUTATING_THREAD_TOOLS.has(tool)) {
+        requireLiveConfirmation(run, confirmLiveAction, tool);
+      }
+      if (tool === "codex_app__send_message_to_thread") {
+        const target = requireTask(run, input.taskId);
+        if (input.sourceTaskId) requireTask(run, input.sourceTaskId);
+        if (!["idle", "blocked", "needs_attention"].includes(target.status)) {
+          throw new ControlPlaneError(
+            "TASK_NOT_READY_FOR_MESSAGE",
+            `Task ${target.id} must be idle or awaiting attention before a follow-up; current state is ${target.status}`
+          );
+        }
+        if (target.roundTrips >= run.maxRoundTrips) {
+          throw new ControlPlaneError(
+            "ROUND_TRIP_LIMIT",
+            `Task ${input.taskId} reached maxRoundTrips=${run.maxRoundTrips}`
+          );
+        }
+      }
+
+      let childTask = null;
+      let normalizedInput = structuredClone(input);
+      if (tool === "codex_app__fork_thread") {
+        const sourceTask = requireTask(run, input.taskId);
+        if (!["idle", "review", "completed"].includes(sourceTask.status)) {
+          throw new ControlPlaneError(
+            "ACTIVE_THREAD_NOT_FORKABLE",
+            "Wait for the source task to become idle or complete before forking"
+          );
+        }
+        if (!isRecord(input.forkTask)) {
+          throw new ControlPlaneError("FORK_TASK_REQUIRED", "forkTask must define the child task contract");
+        }
+        childTask = createTaskRecord(
+          {
+            ...input.forkTask,
+            cwd: input.forkTask.cwd || sourceTask.cwd,
+            sourceTaskId: sourceTask.id
+          },
+          { id: makeId("task"), at }
+        );
+        transition(childTask, "task", "prepared", at);
+        normalizedInput.forkTask = structuredClone(childTask);
+      }
+      if (tool === "codex_app__handoff_thread") {
+        const target = requireTask(run, input.taskId);
+        if (!["running", "idle", "blocked", "needs_attention"].includes(target.status)) {
+          throw new ControlPlaneError(
+            "TASK_NOT_HANDOFF_READY",
+            `Task ${target.id} cannot be handed off from ${target.status}`
+          );
+        }
+      }
+
+      let intent;
+      try {
+        intent = buildNativeOperationIntent({
+          run,
+          tasks: run.tasks,
+          tool,
+          input: normalizedInput,
+          operations: run.operations
+        });
+      } catch (error) {
+        throw asControlPlaneError(error);
+      }
+      if (childTask) run.tasks[childTask.id] = childTask;
+      const operation = createOperation({
+        id: makeId("op"),
+        kind: "native",
+        tool,
+        taskIds: childTask ? [...intent.taskIds, childTask.id] : intent.taskIds,
+        phase: "ready",
+        argumentsValue: intent.arguments,
+        at,
+        metadata: compactObject({
+          message: intent.message,
+          parentOperationId: intent.parentOperationId
+        })
+      });
+      if (childTask) operation.childTaskId = childTask.id;
+      operation.confirmedAt =
+        run.executionMode === "live" && MUTATING_THREAD_TOOLS.has(tool) ? at : null;
+      run.operations[operation.id] = operation;
+      touchRun(run, at);
+      run.events.push(
+        event(
+          "OPERATION_PREPARED",
+          `Prepared ${tool}`,
+          { operationId: operation.id, taskIds: operation.taskIds },
+          at
+        )
+      );
+      response = {
+        operation: structuredClone(operation),
+        childTask: childTask ? structuredClone(childTask) : null,
+        executable: run.executionMode === "live",
+        nextCall: { tool, arguments: structuredClone(intent.arguments) }
+      };
+    });
+    return response;
+  }
+
+  async completeOperation({ runId, operationId, result = {} }) {
+    const at = nowIso(this.clock);
+    let response;
+    await this.ledger.update((draft) => {
+      const run = requireRun(draft, runId);
+      const operation = requireOperation(run, operationId);
+      if (["codex_app__create_thread", "codex_app__fork_thread"].includes(operation.tool)) {
+        throw new ControlPlaneError(
+          "USE_RECORD_THREAD_LAUNCH",
+          "Task creation and fork results must be recorded with recordThreadLaunch"
+        );
+      }
+      if (!["prepared", "pending"].includes(operation.status)) {
+        throw new ControlPlaneError(
+          "OPERATION_ALREADY_FINAL",
+          `Operation ${operationId} is ${operation.status}`
+        );
+      }
+      if (run.executionMode !== "live") {
+        throw new ControlPlaneError("DRY_RUN_ONLY", "A dry-run cannot record a native tool result");
+      }
+      const failed = result.status === "failed" || result.ok === false || result.error;
+      if (failed) {
+        failOperation(run, operation, result.error, at);
+        touchRun(run, at);
+        recalculateRun(run, at);
+        response = structuredClone(operation);
+        return;
+      }
+
+      switch (operation.tool) {
+        case "codex_app__list_threads":
+          applyThreadBindings(run, operation, result.bindings || [], at);
+          finishOperation(operation, "succeeded", result, at);
+          break;
+        case "codex_app__wait_threads":
+        case "codex_app__read_thread":
+          applyObservations(run, operation, result.observations || [], at);
+          finishOperation(operation, "succeeded", result, at);
+          break;
+        case "codex_app__send_message_to_thread":
+          applySendResult(run, operation, result, at);
+          finishOperation(operation, "succeeded", result, at);
+          break;
+        case "codex_app__handoff_thread":
+          applyHandoffStart(run, operation, result, at);
+          break;
+        case "codex_app__get_handoff_status":
+          applyHandoffStatus(run, operation, result, at);
+          break;
+        case "codex_app__set_thread_title":
+          applyTitleResult(run, operation, result, at);
+          finishOperation(operation, "succeeded", result, at);
+          break;
+        case "codex_app__set_thread_pinned":
+          applyPinnedResult(run, operation, result, at);
+          finishOperation(operation, "succeeded", result, at);
+          break;
+        case "codex_app__set_thread_archived":
+          applyArchivedResult(run, operation, result, at);
+          finishOperation(operation, "succeeded", result, at);
+          break;
+        case "codex_app__navigate_to_codex_page":
+          finishOperation(operation, "succeeded", result, at);
+          break;
+        default:
+          throw new ControlPlaneError(
+            "UNSUPPORTED_COMPLETION",
+            `No completion handler for ${operation.tool}`
+          );
+      }
+      touchRun(run, at);
+      recalculateRun(run, at);
+      run.events.push(
+        event(
+          "OPERATION_RECORDED",
+          `${operation.tool}: ${operation.status}`,
+          { operationId, taskIds: operation.taskIds },
+          at
+        )
+      );
+      response = {
+        operation: structuredClone(operation),
+        tasks: operation.taskIds
+          .filter((taskId) => run.tasks[taskId])
+          .map((taskId) => structuredClone(run.tasks[taskId]))
+      };
+    });
+    return response;
   }
 
   async decideTask({ runId, taskId, decision, note = "" }) {
-    if (!["accept", "reject", "fail"].includes(decision)) {
+    if (!["accept", "continue", "fail"].includes(decision)) {
       throw new ControlPlaneError("INVALID_DECISION", `Unsupported decision: ${decision}`);
     }
     const at = nowIso(this.clock);
-    const { ledger } = await this.ledger.update((draft) => {
+    let response;
+    await this.ledger.update((draft) => {
       const run = requireRun(draft, runId);
       const task = requireTask(run, taskId);
       if (task.status !== "review") {
-        throw new ControlPlaneError("TASK_NOT_IN_REVIEW", `Task is ${task.status}`);
-      }
-      if (decision === "accept") {
-        transition(task, "task", "completed", at);
-        const session = task.sessionId ? run.sessions[task.sessionId] : null;
-        if (session?.status === "idle") transition(session, "session", "completed", at);
-      } else if (decision === "reject") {
-        transition(task, "task", "dispatched", at);
-      } else {
-        transition(task, "task", "failed", at);
-        task.error = note || "Rejected by controller";
-      }
-      run.messages.push(
-        messageEnvelope(run, task, "DECISION", { decision, note }, null, at)
-      );
-      run.events.push(
-        event("TASK_DECIDED", `Task decision: ${decision}`, { taskId, note }, at)
-      );
-      settleRun(run, at);
-      run.updatedAt = at;
-    });
-    return structuredClone(ledger.runs[runId].tasks[taskId]);
-  }
-
-  async stopTask({ runId, taskId, confirmLiveDispatch = false }) {
-    const { run, task } = await this.#readTask(runId, taskId);
-    if (run.executionMode === "live" && confirmLiveDispatch !== true) {
-      throw new ControlPlaneError(
-        "LIVE_CONFIRMATION_REQUIRED",
-        "Stopping a live turn requires confirmLiveDispatch=true"
-      );
-    }
-    if (run.executionMode === "live" && task.sessionId && task.activeTurnId) {
-      const client = await this.#client();
-      await client.interruptTurn(task.sessionId, task.activeTurnId);
-    }
-    const at = nowIso(this.clock);
-    await this.ledger.update((draft) => {
-      const draftRun = requireRun(draft, runId);
-      const draftTask = requireTask(draftRun, taskId);
-      if (!["completed", "failed", "cancelled"].includes(draftTask.status)) {
-        transition(draftTask, "task", "cancelled", at);
-      }
-      draftTask.activeTurnId = null;
-      const session = draftTask.sessionId ? draftRun.sessions[draftTask.sessionId] : null;
-      if (session && !["archived", "completed", "failed"].includes(session.status)) {
-        transition(session, "session", "failed", at);
-      }
-      draftRun.events.push(event("TASK_STOPPED", "Task stopped by controller", { taskId }, at));
-      settleRun(draftRun, at);
-    });
-    return { runId, taskId, status: "cancelled" };
-  }
-
-  async archiveSession({ runId, threadId, confirmLiveDispatch = false }) {
-    const ledger = await this.ledger.read();
-    const run = requireRun(ledger, runId);
-    const session = run.sessions[threadId];
-    if (!session) throw new ControlPlaneError("SESSION_NOT_FOUND", `Unknown session: ${threadId}`);
-    if (run.executionMode === "live") {
-      if (confirmLiveDispatch !== true) {
         throw new ControlPlaneError(
-          "LIVE_CONFIRMATION_REQUIRED",
-          "Archiving a live thread requires confirmLiveDispatch=true"
+          "TASK_NOT_IN_REVIEW",
+          `Task ${taskId} is ${task.status}; a controller decision requires review`
         );
       }
-      const client = await this.#client();
-      await client.archiveThread(threadId);
-    }
-    const at = nowIso(this.clock);
-    await this.ledger.update((draft) => {
-      const draftRun = requireRun(draft, runId);
-      const draftSession = draftRun.sessions[threadId];
-      if (draftSession.status !== "archived") {
-        transition(draftSession, "session", "archived", at);
+      const nextStatus = decision === "accept" ? "completed" : decision === "continue" ? "idle" : "failed";
+      transition(task, "task", nextStatus, at);
+      if (decision === "fail") {
+        task.error = { code: "CONTROLLER_REJECTED", message: note || "Controller rejected result" };
       }
-      draftRun.events.push(
-        event("SESSION_ARCHIVED", `Session archived: ${threadId}`, { threadId }, at)
+      run.messages.push(
+        messageEnvelope(run, task, "DECISION", note || decision, {
+          senderTaskId: null,
+          recipientTaskId: task.id,
+          metadata: { decision }
+        }, at)
       );
+      touchRun(run, at);
+      recalculateRun(run, at);
+      run.events.push(event("CONTROLLER_DECISION", `${decision}: ${task.title}`, { taskId, note }, at));
+      response = structuredClone(task);
     });
-    return { runId, threadId, status: "archived" };
+    return response;
   }
 
-  async simulateTask({ runId, taskId, summary, artifacts = [], verification = [] }) {
+  async requestCancel({ runId, taskId, reason }) {
+    requireText(reason, "reason");
     const at = nowIso(this.clock);
-    const simulatedThreadId = `sim_${taskId}`;
-    const { ledger } = await this.ledger.update((draft) => {
+    let response;
+    await this.ledger.update((draft) => {
+      const run = requireRun(draft, runId);
+      const task = requireTask(run, taskId);
+      if (TERMINAL_TASK_STATES.has(task.status)) {
+        throw new ControlPlaneError("TASK_ALREADY_TERMINAL", `Task ${taskId} is ${task.status}`);
+      }
+      const hasRuntime = Boolean(task.threadId || task.clientThreadId);
+      if (hasRuntime) transition(task, "task", "cancel_requested", at);
+      else transition(task, "task", "cancelled", at);
+      run.messages.push(
+        messageEnvelope(run, task, "CANCEL", reason.trim(), {
+          senderTaskId: null,
+          recipientTaskId: task.id
+        }, at)
+      );
+      touchRun(run, at);
+      recalculateRun(run, at);
+      run.events.push(
+        event(
+          "CANCEL_REQUESTED",
+          `Cancellation recorded for ${task.title}`,
+          { taskId, humanStopRequired: hasRuntime },
+          at
+        )
+      );
+      response = {
+        task: structuredClone(task),
+        humanStopRequired: hasRuntime,
+        threadId: task.threadId,
+        clientThreadId: task.clientThreadId,
+        guidance: hasRuntime
+          ? "Stop the visible Codex task in the app, then record a cancelled or failed observation."
+          : "The unlaunched task was cancelled in the ledger."
+      };
+    });
+    return response;
+  }
+
+  async simulateTask({
+    runId,
+    taskId,
+    summary,
+    artifacts = [],
+    verification = []
+  }) {
+    requireText(summary, "summary");
+    const at = nowIso(this.clock);
+    let response;
+    await this.ledger.update((draft) => {
       const run = requireRun(draft, runId);
       if (run.executionMode !== "dry-run") {
-        throw new ControlPlaneError("LIVE_RUN", "simulateTask is only available in dry-run mode");
+        throw new ControlPlaneError("LIVE_RUN", "simulateTask is only available for dry-run runs");
       }
       const task = requireTask(run, taskId);
-      transition(task, "task", "dispatched", at);
-      transition(task, "task", "running", at);
-      task.sessionId = simulatedThreadId;
-      task.roundTrips = 1;
-      run.sessions[simulatedThreadId] = {
-        id: simulatedThreadId,
-        hostId: null,
-        role: task.role,
-        cwd: task.cwd,
-        status: "active",
-        profile: structuredClone(task.profile),
-        createdAt: at,
-        updatedAt: at
-      };
-      run.messages.push(messageEnvelope(run, task, "ASSIGN", task.prompt, null, at));
+      if (!["created", "prepared"].includes(task.status)) {
+        throw new ControlPlaneError("TASK_NOT_SIMULATABLE", `Task ${taskId} is ${task.status}`);
+      }
       transition(task, "task", "review", at);
-      task.result = { status: "completed", summary };
-      task.artifacts = [...artifacts];
-      task.verification = [...verification];
-      transition(run.sessions[simulatedThreadId], "session", "idle", at);
+      task.result = { summary: summary.trim(), simulated: true };
+      task.artifacts = normalizeStringArray(artifacts, "artifacts");
+      task.verification = normalizeStringArray(verification, "verification");
       run.messages.push(
-        messageEnvelope(run, task, "RESULT", task.result, null, at, {
-          artifacts: task.artifacts,
-          verification: task.verification
-        })
+        messageEnvelope(run, task, "RESULT", task.result.summary, {
+          senderTaskId: task.id,
+          recipientTaskId: null,
+          metadata: { simulated: true }
+        }, at)
       );
-      run.events.push(
-        event("TASK_SIMULATED", `Dry-run result ready: ${task.title}`, { taskId }, at)
-      );
+      touchRun(run, at);
+      recalculateRun(run, at);
+      response = structuredClone(task);
     });
-    return structuredClone(ledger.runs[runId].tasks[taskId]);
+    return response;
   }
 
   async snapshot({ runId = null } = {}) {
@@ -655,39 +697,400 @@ export class ControlPlane {
     return structuredClone(requireRun(ledger, runId));
   }
 
-  async close() {
-    await this.appServer?.stop();
-    this.appServer = null;
-  }
+  async close() {}
+}
 
-  async #client() {
-    if (!this.appServer) {
-      this.appServer = this.appServerFactory();
+function createOperation({
+  id,
+  kind,
+  tool,
+  taskIds,
+  phase,
+  argumentsValue,
+  metadata = {},
+  at
+}) {
+  return {
+    id,
+    kind,
+    tool,
+    status: "prepared",
+    phase,
+    taskIds: [...taskIds],
+    childTaskId: null,
+    arguments: argumentsValue ? structuredClone(argumentsValue) : null,
+    metadata: structuredClone(metadata),
+    project: null,
+    confirmedAt: null,
+    runtimeOperationId: null,
+    runtimeRevision: null,
+    result: null,
+    error: null,
+    createdAt: at,
+    updatedAt: at
+  };
+}
+
+function applyThreadBindings(run, operation, bindings, at) {
+  if (!Array.isArray(bindings)) {
+    throw new ControlPlaneError("INVALID_BINDINGS", "bindings must be an array");
+  }
+  for (const binding of bindings) {
+    const task = requireTask(run, binding.taskId);
+    if (!task.clientThreadId || task.threadId) {
+      throw new ControlPlaneError(
+        "TASK_NOT_PROVISIONING",
+        `Task ${task.id} is not waiting for a queued task binding`
+      );
     }
-    await this.appServer.start();
-    return this.appServer;
-  }
-
-  async #readTask(runId, taskId) {
-    const ledger = await this.ledger.read();
-    const run = requireRun(ledger, runId);
-    const task = requireTask(run, taskId);
-    return { run, task };
+    requireText(binding.threadId, "binding.threadId");
+    if (binding.clientThreadId !== task.clientThreadId) {
+      throw new ControlPlaneError(
+        "CLIENT_THREAD_MATCH_REQUIRED",
+        `Binding for ${task.id} must include its exact clientThreadId`
+      );
+    }
+    if (binding.matchCount !== 1) {
+      throw new ControlPlaneError(
+        "UNIQUE_MATCH_REQUIRED",
+        `Binding for ${task.id} must report exactly one native task match`
+      );
+    }
+    if (task.threadTitle && binding.matchedTitle !== task.threadTitle) {
+      throw new ControlPlaneError(
+        "TITLE_MATCH_REQUIRED",
+        `Binding for ${task.id} must include its exact generated title`
+      );
+    }
+    const oldKey = `client:${task.clientThreadId}`;
+    const oldThread = run.threads[oldKey];
+    delete run.threads[oldKey];
+    task.threadId = binding.threadId.trim();
+    task.hostId = optionalText(binding.hostId || task.hostId);
+    task.clientThreadId = null;
+    const boundStatus = task.sourceTaskId ? "idle" : "running";
+    transition(task, "task", boundStatus, at);
+    const thread = {
+      ...(oldThread || makeThreadRecord({ task, status: "active", at })),
+      id: task.threadId,
+      hostId: task.hostId,
+      clientThreadId: null,
+      status: task.sourceTaskId ? "idle" : "active",
+      updatedAt: at
+    };
+    run.threads[task.threadId] = thread;
+    run.events.push(
+      event(
+        "QUEUED_THREAD_BOUND",
+        `Queued task bound to ${task.threadId}`,
+        { taskId: task.id, operationId: operation.id },
+        at
+      )
+    );
   }
 }
 
-function validateTaskInput({ title, prompt, role, cwd, model, effort, sandbox }) {
-  for (const [name, value] of Object.entries({ title, prompt, role, cwd, model })) {
-    if (typeof value !== "string" || !value.trim()) {
-      throw new ControlPlaneError("INVALID_TASK", `${name} is required`);
+function applyObservations(run, operation, observations, at) {
+  if (!Array.isArray(observations) || observations.length === 0) {
+    throw new ControlPlaneError(
+      "OBSERVATIONS_REQUIRED",
+      `${operation.tool} completion requires at least one normalized observation`
+    );
+  }
+  for (const observation of observations) {
+    if (!operation.taskIds.includes(observation.taskId)) {
+      throw new ControlPlaneError(
+        "OBSERVATION_OUT_OF_SCOPE",
+        `Task ${observation.taskId} is not part of operation ${operation.id}`
+      );
+    }
+    if (!OBSERVATION_STATES.has(observation.status)) {
+      throw new ControlPlaneError(
+        "INVALID_OBSERVATION_STATUS",
+        `Unsupported observation state: ${observation.status}`
+      );
+    }
+    const task = requireTask(run, observation.taskId);
+    const thread = findThreadForTask(run, task);
+    const taskStatus = observation.status === "completed" ? "review" : observation.status;
+    const threadStatus =
+      observation.status === "running"
+        ? "active"
+        : observation.status === "review"
+          ? "completed"
+          : observation.status === "cancelled"
+            ? "completed"
+            : observation.status;
+    const alreadyTerminal = TERMINAL_TASK_STATES.has(task.status);
+    if (!alreadyTerminal) {
+      transition(task, "task", taskStatus, at);
+      if (thread) transition(thread, "thread", threadStatus, at);
+    }
+    if (observation.cursor != null) task.lastCursor = String(observation.cursor);
+    if (observation.summary != null) {
+      requireText(observation.summary, "observation.summary");
+      task.result = {
+        summary: observation.summary.trim(),
+        observedBy: operation.tool,
+        rawStatus: observation.status
+      };
+    }
+    if (observation.artifacts != null) {
+      task.artifacts = normalizeStringArray(observation.artifacts, "artifacts");
+    }
+    if (observation.verification != null) {
+      task.verification = normalizeStringArray(observation.verification, "verification");
+    }
+    if (observation.error != null) task.error = normalizeError(observation.error);
+    if (taskStatus === "review" && !alreadyTerminal) {
+      run.messages.push(
+        messageEnvelope(run, task, "RESULT", task.result?.summary || "Task completed", {
+          senderTaskId: task.id,
+          recipientTaskId: null,
+          metadata: { observationStatus: observation.status }
+        }, at)
+      );
     }
   }
-  if (!ALLOWED_EFFORTS.has(effort)) {
-    throw new ControlPlaneError("INVALID_EFFORT", `Unsupported effort: ${effort}`);
+}
+
+function applySendResult(run, operation, result, at) {
+  const task = requireTask(run, operation.taskIds[0]);
+  transition(task, "task", "running", at);
+  const thread = findThreadForTask(run, task);
+  if (thread) transition(thread, "thread", "active", at);
+  task.roundTrips += 1;
+  if (result.cursor != null) task.lastCursor = String(result.cursor);
+  const message = operation.metadata.message || {};
+  const type = MESSAGE_TYPES.has(message.type) ? message.type : "QUESTION";
+  run.messages.push(
+    messageEnvelope(run, task, type, message.payload || "Follow-up sent", {
+      senderTaskId: message.sourceTaskId || null,
+      recipientTaskId: task.id
+    }, at)
+  );
+}
+
+function applyHandoffStart(run, operation, result, at) {
+  requireText(result.runtimeOperationId, "runtimeOperationId");
+  operation.runtimeOperationId = result.runtimeOperationId.trim();
+  operation.runtimeRevision = Number.isInteger(result.runtimeRevision)
+    ? result.runtimeRevision
+    : null;
+  const task = requireTask(run, operation.taskIds[0]);
+  transition(task, "task", "needs_attention", at);
+  const thread = findThreadForTask(run, task);
+  if (thread) transition(thread, "thread", "handoff", at);
+  const state = requireHandoffState(result.handoffState);
+  if (state === "completed") {
+    finishOperation(operation, "succeeded", result, at);
+    applyCompletedHandoff(run, task, result, at);
+  } else if (state === "failed") {
+    failOperation(run, operation, result.error, at);
+    if (thread) transition(thread, "thread", "needs_attention", at);
+  } else {
+    finishOperation(operation, "pending", result, at);
   }
-  if (!ALLOWED_SANDBOXES.has(sandbox)) {
-    throw new ControlPlaneError("INVALID_SANDBOX", `Unsupported sandbox: ${sandbox}`);
+}
+
+function applyHandoffStatus(run, operation, result, at) {
+  const parent = requireOperation(run, operation.metadata.parentOperationId);
+  const task = requireTask(run, parent.taskIds[0]);
+  const state = requireHandoffState(result.handoffState);
+  if (state === "pending") {
+    operation.runtimeRevision = Number.isInteger(result.runtimeRevision)
+      ? result.runtimeRevision
+      : operation.runtimeRevision;
+    finishOperation(operation, "pending", result, at);
+    return;
   }
+  if (state === "failed") {
+    failOperation(run, operation, result.error, at);
+    if (["prepared", "pending"].includes(parent.status)) failOperation(run, parent, result.error, at);
+    const thread = findThreadForTask(run, task);
+    if (thread) transition(thread, "thread", "needs_attention", at);
+    return;
+  }
+  finishOperation(operation, "succeeded", result, at);
+  if (["prepared", "pending"].includes(parent.status)) {
+    finishOperation(parent, "succeeded", result, at);
+  }
+  applyCompletedHandoff(run, task, result, at);
+}
+
+function applyCompletedHandoff(run, task, result, at) {
+  const oldThread = findThreadForTask(run, task);
+  const oldKey = oldThread ? threadKey(oldThread) : null;
+  const nextThreadId = optionalText(result.threadId || task.threadId);
+  const nextHostId = optionalText(result.hostId || task.hostId);
+  task.threadId = nextThreadId;
+  task.hostId = nextHostId;
+  transition(task, "task", result.taskStatus === "idle" ? "idle" : "running", at);
+  if (oldKey) delete run.threads[oldKey];
+  const thread = {
+    ...(oldThread || makeThreadRecord({ task, status: "active", at })),
+    id: nextThreadId,
+    hostId: nextHostId,
+    clientThreadId: null,
+    status: result.taskStatus === "idle" ? "idle" : "active",
+    updatedAt: at
+  };
+  run.threads[threadKey(thread)] = thread;
+}
+
+function applyTitleResult(run, operation, result, at) {
+  const task = requireTask(run, operation.taskIds[0]);
+  const title = optionalText(result.title || operation.arguments.title);
+  task.threadTitle = title;
+  const thread = findThreadForTask(run, task);
+  if (thread) {
+    thread.title = title;
+    thread.updatedAt = at;
+  }
+}
+
+function applyPinnedResult(run, operation, result, at) {
+  const task = requireTask(run, operation.taskIds[0]);
+  const pinned = result.pinned ?? operation.arguments.pinned;
+  if (typeof pinned !== "boolean") {
+    throw new ControlPlaneError("INVALID_PINNED_RESULT", "pinned result must be boolean");
+  }
+  const thread = findThreadForTask(run, task);
+  if (thread) {
+    thread.pinned = pinned;
+    thread.updatedAt = at;
+  }
+}
+
+function applyArchivedResult(run, operation, result, at) {
+  const task = requireTask(run, operation.taskIds[0]);
+  const archived = result.archived ?? operation.arguments.archived;
+  if (typeof archived !== "boolean") {
+    throw new ControlPlaneError("INVALID_ARCHIVED_RESULT", "archived result must be boolean");
+  }
+  const thread = findThreadForTask(run, task);
+  if (!thread) return;
+  thread.archived = archived;
+  if (archived) {
+    thread.previousStatus = thread.status;
+    transition(thread, "thread", "archived", at);
+  } else {
+    const restoredStatus =
+      thread.previousStatus && thread.previousStatus !== "archived"
+        ? thread.previousStatus
+        : "idle";
+    transition(thread, "thread", restoredStatus, at);
+    thread.previousStatus = null;
+  }
+}
+
+function finishOperation(operation, status, result, at) {
+  transition(operation, "operation", status, at);
+  operation.result = summarizeResult(result);
+  operation.error = null;
+}
+
+function failOperation(run, operation, error, at) {
+  transition(operation, "operation", "failed", at);
+  operation.error = normalizeError(error) || {
+    code: "NATIVE_CALL_FAILED",
+    message: `${operation.tool} failed`
+  };
+  const task = run.tasks[operation.taskIds[0]];
+  if (
+    task &&
+    !TERMINAL_TASK_STATES.has(task.status) &&
+    [
+      "codex_app__send_message_to_thread",
+      "codex_app__handoff_thread",
+      "codex_app__get_handoff_status"
+    ].includes(operation.tool)
+  ) {
+    task.error = structuredClone(operation.error);
+    try {
+      transition(task, "task", "needs_attention", at);
+    } catch {
+      // The operation failure is still retained even when task state is not movable.
+    }
+  }
+}
+
+function makeThreadRecord({ task, threadId = task.threadId, hostId = task.hostId, clientThreadId = task.clientThreadId, status, at }) {
+  return {
+    id: threadId || null,
+    hostId: hostId || null,
+    clientThreadId: clientThreadId || null,
+    taskId: task.id,
+    sourceTaskId: task.sourceTaskId,
+    title: task.threadTitle,
+    project: structuredClone(task.project),
+    status,
+    previousStatus: null,
+    pinned: false,
+    archived: false,
+    createdAt: at,
+    updatedAt: at
+  };
+}
+
+function threadKey(thread) {
+  return thread.id || `client:${thread.clientThreadId}`;
+}
+
+function findThreadForTask(run, task) {
+  if (task.threadId && run.threads[task.threadId]) return run.threads[task.threadId];
+  if (task.clientThreadId && run.threads[`client:${task.clientThreadId}`]) {
+    return run.threads[`client:${task.clientThreadId}`];
+  }
+  return Object.values(run.threads).find((thread) => thread.taskId === task.id) || null;
+}
+
+function messageEnvelope(run, task, type, payload, options, at) {
+  if (!MESSAGE_TYPES.has(type)) {
+    throw new ControlPlaneError("INVALID_MESSAGE_TYPE", `Unsupported message type: ${type}`);
+  }
+  const senderTask = options?.senderTaskId ? run.tasks[options.senderTaskId] : null;
+  const recipientTask = options?.recipientTaskId ? run.tasks[options.recipientTaskId] : null;
+  const provenanceTask = senderTask || task;
+  return {
+    schemaVersion: "codex-thread-message/v2",
+    id: makeId("msg"),
+    runId: run.id,
+    type,
+    createdAt: at,
+    sender: {
+      role: senderTask ? senderTask.role : "controller",
+      taskId: senderTask?.id || null,
+      threadId: senderTask?.threadId || run.controller.threadId || null,
+      hostId: senderTask?.hostId || run.controller.hostId || null
+    },
+    recipient: {
+      role: recipientTask ? recipientTask.role : "controller",
+      taskId: recipientTask?.id || null,
+      threadId: recipientTask?.threadId || run.controller.threadId || null,
+      hostId: recipientTask?.hostId || run.controller.hostId || null
+    },
+    payload,
+    metadata: structuredClone(options?.metadata || {}),
+    provenance: {
+      artifacts: [...provenanceTask.artifacts],
+      verification: [...provenanceTask.verification]
+    }
+  };
+}
+
+function recalculateRun(run, at) {
+  const tasks = Object.values(run.tasks);
+  if (tasks.length === 0) return;
+  let desired = "active";
+  if (tasks.every((task) => task.status === "cancelled")) desired = "cancelled";
+  else if (tasks.every((task) => ["completed", "cancelled"].includes(task.status))) desired = "completed";
+  else if (tasks.every((task) => TERMINAL_TASK_STATES.has(task.status)) && tasks.some((task) => task.status === "failed")) desired = "failed";
+  else if (
+    tasks.some((task) => task.status === "review") &&
+    tasks.every((task) => task.status === "review" || TERMINAL_TASK_STATES.has(task.status))
+  ) desired = "review";
+  if (run.status !== desired) transition(run, "run", desired, at);
 }
 
 function requireRun(ledger, runId) {
@@ -702,213 +1105,103 @@ function requireTask(run, taskId) {
   return task;
 }
 
+function requireOperation(run, operationId) {
+  const operation = run.operations?.[operationId];
+  if (!operation) {
+    throw new ControlPlaneError("OPERATION_NOT_FOUND", `Unknown operation: ${operationId}`);
+  }
+  return operation;
+}
+
 function requireRunOpen(run) {
-  if (!["draft", "active"].includes(run.status)) {
-    throw new ControlPlaneError("RUN_CLOSED", `Run is ${run.status}`);
+  if (["completed", "cancelled"].includes(run.status)) {
+    throw new ControlPlaneError("RUN_CLOSED", `Run ${run.id} is ${run.status}`);
   }
 }
 
-function threadStartParams(run, task) {
+function requireLiveConfirmation(run, confirmed, action) {
+  if (run.executionMode === "dry-run") return;
+  if (confirmed !== true) {
+    throw new ControlPlaneError(
+      "LIVE_CONFIRMATION_REQUIRED",
+      `${action} requires confirmLiveAction=true from an explicit user request`
+    );
+  }
+}
+
+function touchRun(run, at) {
+  run.updatedAt = at;
+}
+
+function event(type, summary, details, at) {
+  return { id: makeId("evt"), type, summary, details: structuredClone(details || {}), at };
+}
+
+function requireText(value, name) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new ControlPlaneError("INVALID_INPUT", `${name} is required`);
+  }
+}
+
+function optionalText(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function requireHandoffState(value) {
+  const state = value || "pending";
+  if (!["pending", "completed", "failed"].includes(state)) {
+    throw new ControlPlaneError(
+      "INVALID_HANDOFF_STATE",
+      `handoffState must be pending, completed, or failed; received ${state}`
+    );
+  }
+  return state;
+}
+
+function normalizeStringArray(value, name) {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || !entry.trim())) {
+    throw new ControlPlaneError("INVALID_STRING_ARRAY", `${name} must contain non-empty strings`);
+  }
+  return value.map((entry) => entry.trim());
+}
+
+function normalizeError(value) {
+  if (!value) return null;
+  if (typeof value === "string") return { code: "NATIVE_CALL_FAILED", message: value };
+  if (!isRecord(value)) return { code: "NATIVE_CALL_FAILED", message: String(value) };
   return {
-    model: task.profile.model,
-    cwd: task.cwd,
-    approvalPolicy: "never",
-    sandbox: task.profile.sandbox,
-    serviceName: "codex_session_control_plane",
-    threadSource: "appServer",
-    developerInstructions: [
-      `You are the independent ${task.role} session for control run ${run.id}.`,
-      "Stay within the assigned task and working directory.",
-      "Do not create, steer, or archive other sessions unless the assignment explicitly authorizes it.",
-      "Treat the controller as the sole authority for global task completion.",
-      "Return artifacts, verification evidence, blockers, and unknowns in the requested structured result."
-    ].join("\n")
+    code: optionalText(value.code) || "NATIVE_CALL_FAILED",
+    message: optionalText(value.message) || "Native tool call failed",
+    details: value.details ?? null
   };
 }
 
-function sandboxPolicy(task) {
-  if (task.profile.sandbox === "danger-full-access") {
-    return { type: "dangerFullAccess" };
-  }
-  if (task.profile.sandbox === "read-only") {
-    return { type: "readOnly", networkAccess: false };
-  }
-  return {
-    type: "workspaceWrite",
-    writableRoots: [task.cwd],
-    networkAccess: false
-  };
+function summarizeResult(result) {
+  if (!isRecord(result)) return { value: result };
+  return compactObject({
+    status: result.status || "succeeded",
+    summary: optionalText(result.summary),
+    cursor: result.cursor ?? null,
+    handoffState: result.handoffState ?? null,
+    runtimeRevision: result.runtimeRevision ?? null,
+    threadId: optionalText(result.threadId),
+    hostId: optionalText(result.hostId),
+    bindingCount: Array.isArray(result.bindings) ? result.bindings.length : null,
+    observationCount: Array.isArray(result.observations) ? result.observations.length : null
+  });
 }
 
-function assignmentPrompt(run, task) {
-  const controllerAddress = run.controller.threadId
-    ? `${run.controller.hostId || "same-host"}:${run.controller.threadId}`
-    : "controller-managed polling";
-  return [
-    `CONTROL RUN: ${run.id}`,
-    `TASK: ${task.id}`,
-    `ROLE: ${task.role}`,
-    `CONTROLLER: ${controllerAddress}`,
-    `MAX ROUND TRIPS: ${run.maxRoundTrips}`,
-    "",
-    task.prompt,
-    "",
-    "Completion contract:",
-    "- Work only inside the assigned scope.",
-    "- Report status, concise summary, artifact paths, verification evidence, blockers, and unknowns.",
-    "- Do not self-declare the global run complete; the controller accepts or rejects the result."
-  ].join("\n");
+function compactObject(value) {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== null && entry !== undefined && entry !== "")
+  );
 }
 
-function relayPrompt(run, sourceTask, targetTask, type, text) {
-  return [
-    `CONTROL RUN: ${run.id}`,
-    `RELAY TYPE: ${type}`,
-    `FROM ROLE: ${sourceTask.role}`,
-    `FROM THREAD: ${sourceTask.sessionId}`,
-    `TO ROLE: ${targetTask.role}`,
-    `TO THREAD: ${targetTask.sessionId}`,
-    "",
-    text,
-    "",
-    "Treat this as a controller-authorized inter-session relay.",
-    "Respond with the same structured completion contract; global acceptance remains with the controller."
-  ].join("\n");
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function workerOutputSchema() {
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: ["status", "summary", "artifacts", "verification", "blockers", "unknowns"],
-    properties: {
-      status: { enum: ["completed", "blocked", "failed"] },
-      summary: { type: "string" },
-      artifacts: { type: "array", items: { type: "string" } },
-      verification: { type: "array", items: { type: "string" } },
-      blockers: { type: "array", items: { type: "string" } },
-      unknowns: { type: "array", items: { type: "string" } }
-    }
-  };
-}
-
-function observeThread(thread) {
-  if (!thread) {
-    return {
-      status: "unknown",
-      completed: false,
-      result: null,
-      artifacts: [],
-      verification: [],
-      error: "thread/read returned no thread"
-    };
-  }
-  const status = typeof thread.status === "string" ? thread.status : thread.status?.type || "unknown";
-  const turns = Array.isArray(thread.turns) ? thread.turns : [];
-  const lastTurn = [...turns].reverse().find((turn) => turn?.status);
-  const lastStatus = lastTurn?.status || status;
-  const raw = extractAgentPayload(lastTurn);
-  const parsed = parseStructuredResult(raw);
-  const completed = ["completed", "failed", "interrupted"].includes(lastStatus);
-  return {
-    status: lastStatus,
-    completed,
-    result: parsed || raw || null,
-    artifacts: Array.isArray(parsed?.artifacts) ? parsed.artifacts : [],
-    verification: Array.isArray(parsed?.verification) ? parsed.verification : [],
-    error:
-      lastStatus === "failed" || status === "systemError"
-        ? lastTurn?.error?.message || thread.error?.message || "Worker thread failed"
-        : null
-  };
-}
-
-function extractAgentPayload(turn) {
-  if (!turn) return null;
-  const items = Array.isArray(turn.items) ? turn.items : [];
-  for (const item of [...items].reverse()) {
-    if (!["agentMessage", "message", "assistantMessage"].includes(item?.type)) continue;
-    if (typeof item.text === "string") return item.text;
-    if (typeof item.message === "string") return item.message;
-    if (typeof item.content === "string") return item.content;
-    if (Array.isArray(item.content)) {
-      const text = item.content
-        .map((part) => (typeof part === "string" ? part : part?.text || ""))
-        .join("");
-      if (text) return text;
-    }
-  }
-  return null;
-}
-
-function parseStructuredResult(value) {
-  if (!value || typeof value !== "string") return value && typeof value === "object" ? value : null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeModelList(response) {
-  const data = response?.data || response?.models || [];
-  if (!Array.isArray(data)) return [];
-  return data.map((model) => ({
-    id: model.id || model.model || model.slug,
-    displayName: model.displayName || model.name || model.id,
-    efforts: model.supportedReasoningEfforts || model.reasoningEfforts || []
-  }));
-}
-
-function event(type, message, data, at) {
-  return {
-    id: makeId("event"),
-    type,
-    message,
-    data,
-    at
-  };
-}
-
-function messageEnvelope(run, task, type, payload, replyTo, at, extra = {}) {
-  const senderTask = extra.senderTask || null;
-  const isWorkerResult = type === "RESULT" || type === "BLOCKED";
-  return {
-    schemaVersion: "control-plane-message/v1",
-    runId: run.id,
-    taskId: task.id,
-    messageId: makeId("msg"),
-    replyTo,
-    sender: {
-      role: senderTask?.role || (isWorkerResult ? task.role : "controller"),
-      threadId:
-        senderTask?.sessionId || (isWorkerResult ? task.sessionId : run.controller.threadId),
-      hostId: senderTask || isWorkerResult ? null : run.controller.hostId
-    },
-    recipient: {
-      role: isWorkerResult ? "controller" : task.role,
-      threadId: isWorkerResult ? run.controller.threadId : task.sessionId,
-      hostId: isWorkerResult ? run.controller.hostId : null
-    },
-    type,
-    createdAt: at,
-    revision: task.roundTrips + 1,
-    maxHops: 1,
-    payload,
-    artifacts: extra.artifacts || [],
-    verification: extra.verification || []
-  };
-}
-
-function settleRun(run, at) {
-  const tasks = Object.values(run.tasks);
-  if (tasks.length === 0) return;
-  if (tasks.every((task) => task.status === "completed")) {
-    if (run.status === "active") transition(run, "run", "review", at);
-    if (run.status === "review") transition(run, "run", "completed", at);
-    return;
-  }
-  if (tasks.every((task) => ["completed", "failed", "cancelled"].includes(task.status))) {
-    if (run.status === "active") transition(run, "run", "failed", at);
-  }
+function asControlPlaneError(error) {
+  if (error instanceof ControlPlaneError) return error;
+  return new ControlPlaneError(error.code || "INVALID_NATIVE_INTENT", error.message);
 }

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { ControlPlane } from "./lib/control-plane.mjs";
 import { Ledger } from "./lib/ledger.mjs";
+import { NATIVE_THREAD_TOOLS } from "./lib/native-thread-tools.mjs";
 import { startDashboardServer } from "./lib/dashboard-server.mjs";
 
 const [command = "help", ...args] = process.argv.slice(2);
@@ -16,14 +17,26 @@ const controlPlane = new ControlPlane({ ledger: new Ledger(ledgerPath) });
 
 try {
   if (command === "preflight") {
-    print(await controlPlane.preflight({ cwd: options.cwd || process.cwd(), connect: options.connect === "true" }));
+    print(
+      await controlPlane.preflight({
+        cwd: options.cwd || process.cwd(),
+        availableTools:
+          options.tools === "all"
+            ? [...NATIVE_THREAD_TOOLS]
+            : String(options.tools || "")
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean)
+      })
+    );
   } else if (command === "snapshot") {
     print(await controlPlane.snapshot({ runId: options.run || null }));
   } else if (command === "demo") {
     print(await seedDemo(controlPlane, options.cwd || process.cwd()));
   } else if (command === "smoke") {
-    const state = options.state || path.join(os.tmpdir(), `codex-control-plane-smoke-${process.pid}.json`);
-    const smokePlane = new ControlPlane({ ledger: new Ledger(state) });
+    const smokePath =
+      options.state || path.join(os.tmpdir(), `codex-thread-orchestration-smoke-${process.pid}.json`);
+    const smokePlane = new ControlPlane({ ledger: new Ledger(smokePath) });
     print(await seedDemo(smokePlane, options.cwd || process.cwd()));
   } else if (command === "serve") {
     if (options.demo === "true") await seedDemo(controlPlane, options.cwd || process.cwd());
@@ -41,12 +54,16 @@ try {
   } else {
     process.stdout.write(
       [
+        "Codex Thread Orchestration Control Plane",
+        "",
         "Usage:",
-        "  node scripts/control-plane-cli.mjs preflight [--cwd PATH] [--connect true]",
+        "  node scripts/control-plane-cli.mjs preflight --cwd PATH --tools all",
         "  node scripts/control-plane-cli.mjs demo [--state PATH] [--cwd PATH]",
         "  node scripts/control-plane-cli.mjs smoke [--cwd PATH]",
         "  node scripts/control-plane-cli.mjs snapshot [--state PATH] [--run ID]",
         "  node scripts/control-plane-cli.mjs serve [--state PATH] [--port 41739] [--demo true]",
+        "",
+        "The CLI manages ledger state only. Native Codex task tools are invoked by the active Codex controller.",
         ""
       ].join("\n")
     );
@@ -57,46 +74,45 @@ try {
 
 async function seedDemo(plane, cwd) {
   const run = await plane.createRun({
-    objective: "Demonstrate controlled multi-session planning, verification, and acceptance",
+    objective: "Demonstrate visible Codex task orchestration with durable control state",
     executionMode: "dry-run",
     maxRoundTrips: 4
   });
-  const design = await plane.addTask({
+  const architecture = await plane.addTask({
     runId: run.id,
-    title: "Inspect session topology",
-    prompt: "Inspect the requested topology and return a bounded design.",
+    title: "Inspect task topology",
+    prompt: "Return a bounded topology and ownership map.",
     role: "architecture",
     cwd,
-    model: "gpt-5.6-terra",
-    effort: "medium",
-    sandbox: "read-only"
+    workerMode: "direct",
+    acceptanceCriteria: ["Native task ownership and controller ownership are distinct"]
   });
-  const review = await plane.addTask({
+  const implementation = await plane.addTask({
     runId: run.id,
-    title: "Verify control contract",
-    prompt: "Verify state transitions, ownership, and stop conditions.",
-    role: "review",
+    title: "Implement one isolated workstream",
+    prompt: "Implement the assigned slice and return artifacts plus primary-path evidence.",
+    role: "implementation",
     cwd,
-    model: "gpt-5.6-sol",
-    effort: "high",
-    sandbox: "read-only"
+    workerMode: "coding-agents",
+    codingAgentsScope: "one isolated implementation workstream",
+    acceptanceCriteria: ["The first handoff is complete for the declared slice"]
   });
   await plane.simulateTask({
     runId: run.id,
-    taskId: design.id,
-    summary: "Topology is bounded and has a single integration owner.",
-    artifacts: ["schemas/run.schema.json"],
-    verification: ["dry-run topology check passed"]
+    taskId: architecture.id,
+    summary: "Topology assigns visible task runtime to native tools and state to the ledger.",
+    artifacts: ["scripts/lib/native-thread-tools.mjs"],
+    verification: ["dry-run ownership contract passed"]
   });
   await plane.simulateTask({
     runId: run.id,
-    taskId: review.id,
-    summary: "State transitions and stop conditions are explicit.",
-    artifacts: ["scripts/lib/state-machine.mjs"],
-    verification: ["state-machine dry-run passed"]
+    taskId: implementation.id,
+    summary: "Coding Agents remains scoped inside its visible worker task.",
+    artifacts: ["skills/control-codex-sessions/SKILL.md"],
+    verification: ["dry-run worker-boundary contract passed"]
   });
-  await plane.decideTask({ runId: run.id, taskId: design.id, decision: "accept" });
-  await plane.decideTask({ runId: run.id, taskId: review.id, decision: "accept" });
+  await plane.decideTask({ runId: run.id, taskId: architecture.id, decision: "accept" });
+  await plane.decideTask({ runId: run.id, taskId: implementation.id, decision: "accept" });
   return plane.snapshot({ runId: run.id });
 }
 
@@ -105,9 +121,10 @@ function parseOptions(values) {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (!value.startsWith("--")) continue;
-    result[value.slice(2)] = values[index + 1] && !values[index + 1].startsWith("--")
-      ? values[++index]
-      : "true";
+    result[value.slice(2)] =
+      values[index + 1] && !values[index + 1].startsWith("--")
+        ? values[++index]
+        : "true";
   }
   return result;
 }

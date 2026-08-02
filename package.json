@@ -1,8 +1,26 @@
 {
   "name": "codex-session-control-plane",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Native Codex thread orchestration with visible tasks, durable control state, and Coding Agents worker integration.",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "author": "Makoto Suzuki",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mlabo-org/codex-session-control-plane.git"
+  },
+  "homepage": "https://github.com/mlabo-org/codex-session-control-plane#readme",
+  "bugs": {
+    "url": "https://github.com/mlabo-org/codex-session-control-plane/issues"
+  },
+  "keywords": [
+    "codex",
+    "thread-orchestration",
+    "multi-agent",
+    "coding-agents",
+    "control-plane"
+  ],
   "engines": {
     "node": ">=22"
   },

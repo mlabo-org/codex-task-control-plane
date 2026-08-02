@@ -7,20 +7,23 @@ import { ControlPlane } from "../scripts/lib/control-plane.mjs";
 import { startDashboardServer } from "../scripts/lib/dashboard-server.mjs";
 import { Ledger } from "../scripts/lib/ledger.mjs";
 
-test("dashboard is loopback-only, token-guarded, and exposes language/theme controls", async (context) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "control-plane-dashboard-"));
+test("dashboard is loopback-only, token-guarded, bilingual, and intent-only", async (context) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-control-dashboard-"));
   context.after(() => fs.rm(root, { recursive: true, force: true }));
   const plane = new ControlPlane({ ledger: new Ledger(path.join(root, "ledger.json")) });
   const dashboard = await startDashboardServer({ controlPlane: plane, port: 0 });
   context.after(() => dashboard.close());
 
   assert.match(dashboard.url, /^http:\/\/127\.0\.0\.1:/);
-  const health = await fetch(new URL("/api/health", dashboard.url)).then((response) =>
-    response.json()
-  );
+  const healthResponse = await fetch(new URL("/api/health", dashboard.url));
+  const health = await healthResponse.json();
   assert.equal(health.ok, true);
+  assert.equal(health.role, "ledger-and-intent-dashboard");
+  assert.match(healthResponse.headers.get("x-content-type-options"), /nosniff/);
 
-  const html = await fetch(dashboard.url).then((response) => response.text());
+  const htmlResponse = await fetch(dashboard.url);
+  const html = await htmlResponse.text();
+  assert.match(htmlResponse.headers.get("content-security-policy"), /default-src 'self'/);
   assert.match(html, /id="language-select"/);
   assert.match(html, /value="system"/);
   assert.match(html, /日本語/);
@@ -30,29 +33,37 @@ test("dashboard is loopback-only, token-guarded, and exposes language/theme cont
   assert.match(html, /value="dark"/);
   assert.doesNotMatch(html, /__CONTROL_PLANE_TOKEN__/);
 
-  const rejected = await fetch(new URL("/api/action", dashboard.url), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      action: "createRun",
-      input: { objective: "must fail without token" }
-    })
+  const rejected = await postAction(dashboard.url, null, "createRun", {
+    objective: "must fail without token"
   });
-  assert.equal(rejected.status, 403);
+  assert.equal(rejected.response.status, 403);
 
-  const created = await fetch(new URL("/api/action", dashboard.url), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-control-plane-token": dashboard.token
-    },
-    body: JSON.stringify({
-      action: "createRun",
-      input: { objective: "dashboard test", executionMode: "dry-run" }
-    })
-  }).then((response) => response.json());
-  assert.equal(created.ok, true);
-  assert.equal(created.result.objective, "dashboard test");
+  const created = await postAction(dashboard.url, dashboard.token, "createRun", {
+    objective: "dashboard test",
+    executionMode: "dry-run"
+  });
+  assert.equal(created.body.ok, true);
+  const task = await postAction(dashboard.url, dashboard.token, "addTask", {
+    runId: created.body.result.id,
+    title: "Plan",
+    prompt: "Prepare only.",
+    role: "planner",
+    cwd: root
+  });
+  const prepared = await postAction(dashboard.url, dashboard.token, "prepareDispatch", {
+    runId: created.body.result.id,
+    taskId: task.body.result.id
+  });
+  assert.equal(prepared.body.result.nextCall.tool, "codex_app__list_projects");
+
+  const forbiddenRuntimeAction = await postAction(
+    dashboard.url,
+    dashboard.token,
+    "dispatch",
+    {}
+  );
+  assert.equal(forbiddenRuntimeAction.response.status, 400);
+  assert.equal(forbiddenRuntimeAction.body.error.code, "UNKNOWN_ACTION");
 });
 
 test("dashboard refuses non-loopback binding", async () => {
@@ -62,3 +73,14 @@ test("dashboard refuses non-loopback binding", async () => {
     /loopback/
   );
 });
+
+async function postAction(url, token, action, input) {
+  const headers = { "content-type": "application/json" };
+  if (token) headers["x-control-plane-token"] = token;
+  const response = await fetch(new URL("/api/action", url), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ action, input })
+  });
+  return { response, body: await response.json() };
+}

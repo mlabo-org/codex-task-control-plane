@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <meta name="control-plane-token" content="__CONTROL_PLANE_TOKEN__">
-    <title>Codex Session Control Plane</title>
+    <title>Codex Thread Orchestration</title>
     <link rel="stylesheet" href="./macos-local-html.css">
     <link rel="stylesheet" href="./control-plane.css">
   </head>
@@ -13,9 +13,9 @@
     <div class="mlh-app control-app">
       <aside class="mlh-sidebar control-sidebar" aria-label="Control runs">
         <div class="brand-block">
-          <span class="brand-mark" aria-hidden="true">CP</span>
+          <span class="brand-mark" aria-hidden="true">TO</span>
           <div>
-            <strong>Session Control</strong>
+            <strong>Thread Control</strong>
             <small data-i18n="upperControl">Upper Control</small>
           </div>
         </div>
@@ -41,7 +41,7 @@
       <main class="mlh-main control-main">
         <header class="mlh-toolbar control-toolbar">
           <div class="toolbar-title">
-            <p class="eyebrow" data-i18n="controlPlane">Control plane</p>
+            <p class="eyebrow" data-i18n="controlPlane">Thread orchestration</p>
             <h1 id="run-title" data-i18n="noRunSelected">No run selected</h1>
           </div>
           <div class="mlh-toolbar-spacer"></div>
@@ -69,106 +69,62 @@
 
         <div id="notice" class="mlh-alert" data-tone="neutral" role="status" aria-live="polite" hidden></div>
 
+        <section class="mlh-alert" data-tone="neutral">
+          <strong data-i18n="runtimeBoundary">Runtime boundary</strong>
+          <span data-i18n="runtimeBoundaryHelp">This dashboard stores state and prepares calls. The active Codex controller executes native task tools.</span>
+        </section>
+
         <section class="metric-grid" aria-label="Run summary">
-          <article class="mlh-card metric-card">
-            <span data-i18n="runStatus">Run status</span>
-            <strong id="metric-run-status">—</strong>
-          </article>
-          <article class="mlh-card metric-card">
-            <span data-i18n="sessions">Sessions</span>
-            <strong id="metric-sessions">0</strong>
-          </article>
-          <article class="mlh-card metric-card">
-            <span data-i18n="tasks">Tasks</span>
-            <strong id="metric-tasks">0</strong>
-          </article>
-          <article class="mlh-card metric-card">
-            <span data-i18n="awaitingReview">Awaiting review</span>
-            <strong id="metric-review">0</strong>
-          </article>
+          <article class="mlh-card metric-card"><span data-i18n="runStatus">Run status</span><strong id="metric-run-status">—</strong></article>
+          <article class="mlh-card metric-card"><span data-i18n="threads">Threads</span><strong id="metric-threads">0</strong></article>
+          <article class="mlh-card metric-card"><span data-i18n="tasks">Tasks</span><strong id="metric-tasks">0</strong></article>
+          <article class="mlh-card metric-card"><span data-i18n="operations">Operations</span><strong id="metric-operations">0</strong></article>
         </section>
 
         <div class="workspace-grid">
           <section class="mlh-panel work-panel" aria-labelledby="tasks-heading">
             <div class="panel-heading">
-              <div>
-                <p class="eyebrow" data-i18n="workQueue">Work queue</p>
-                <h2 id="tasks-heading" data-i18n="tasks">Tasks</h2>
-              </div>
-              <button class="mlh-button is-small" id="add-task-button" type="button" disabled>
-                <span aria-hidden="true">＋</span>
-                <span data-i18n="addTask">Add task</span>
-              </button>
+              <div><p class="eyebrow" data-i18n="workQueue">Work queue</p><h2 id="tasks-heading" data-i18n="tasks">Tasks</h2></div>
+              <button class="mlh-button is-small" id="add-task-button" type="button" disabled><span aria-hidden="true">＋</span><span data-i18n="addTask">Add task</span></button>
             </div>
             <div class="mlh-table-wrap">
               <table class="mlh-table control-table">
-                <thead>
-                  <tr>
-                    <th data-i18n="role">Role</th>
-                    <th data-i18n="task">Task</th>
-                    <th data-i18n="profile">Profile</th>
-                    <th data-i18n="status">Status</th>
-                    <th data-i18n="actions">Actions</th>
-                  </tr>
-                </thead>
+                <thead><tr><th data-i18n="role">Role</th><th data-i18n="task">Task</th><th data-i18n="workflow">Workflow</th><th data-i18n="status">Status</th><th data-i18n="actions">Actions</th></tr></thead>
                 <tbody id="task-rows"></tbody>
               </table>
             </div>
-            <div class="mlh-empty" id="task-empty">
-              <strong data-i18n="noTasks">No tasks</strong>
-              <span data-i18n="noTasksHelp">Add a bounded task to begin planning.</span>
-            </div>
+            <div class="mlh-empty" id="task-empty"><strong data-i18n="noTasks">No tasks</strong><span data-i18n="noTasksHelp">Add one bounded worker contract.</span></div>
           </section>
 
-          <section class="mlh-panel work-panel" aria-labelledby="sessions-heading">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow" data-i18n="runtime">Runtime</p>
-                <h2 id="sessions-heading" data-i18n="sessions">Sessions</h2>
-              </div>
-            </div>
+          <section class="mlh-panel work-panel" aria-labelledby="threads-heading">
+            <div class="panel-heading"><div><p class="eyebrow" data-i18n="nativeRuntime">Native runtime</p><h2 id="threads-heading" data-i18n="threads">Threads</h2></div></div>
             <div class="mlh-table-wrap">
               <table class="mlh-table control-table">
-                <thead>
-                  <tr>
-                    <th data-i18n="session">Session</th>
-                    <th data-i18n="role">Role</th>
-                    <th data-i18n="model">Model</th>
-                    <th data-i18n="status">Status</th>
-                    <th data-i18n="actions">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="session-rows"></tbody>
+                <thead><tr><th data-i18n="thread">Thread</th><th data-i18n="task">Task</th><th data-i18n="environment">Environment</th><th data-i18n="status">Status</th></tr></thead>
+                <tbody id="thread-rows"></tbody>
               </table>
             </div>
-            <div class="mlh-empty" id="session-empty">
-              <strong data-i18n="noSessions">No sessions</strong>
-              <span data-i18n="noSessionsHelp">A session appears after a task is dispatched.</span>
+            <div class="mlh-empty" id="thread-empty"><strong data-i18n="noThreads">No threads</strong><span data-i18n="noThreadsHelp">A native task binding appears after the controller records a launch.</span></div>
+          </section>
+
+          <section class="mlh-panel work-panel" aria-labelledby="operations-heading">
+            <div class="panel-heading"><div><p class="eyebrow" data-i18n="intentLedger">Intent ledger</p><h2 id="operations-heading" data-i18n="operations">Operations</h2></div></div>
+            <div class="mlh-table-wrap">
+              <table class="mlh-table control-table">
+                <thead><tr><th data-i18n="tool">Tool</th><th data-i18n="target">Target</th><th data-i18n="phase">Phase</th><th data-i18n="status">Status</th></tr></thead>
+                <tbody id="operation-rows"></tbody>
+              </table>
             </div>
+            <div class="mlh-empty" id="operation-empty"><strong data-i18n="noOperations">No operations</strong><span data-i18n="noOperationsHelp">Prepared native calls and their results appear here.</span></div>
           </section>
 
           <section class="mlh-panel inspector-panel" aria-labelledby="inspector-heading">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow" data-i18n="inspection">Inspection</p>
-                <h2 id="inspector-heading" data-i18n="resultAndArtifacts">Result & artifacts</h2>
-              </div>
-            </div>
-            <div id="inspector-content" class="inspector-content">
-              <div class="mlh-empty">
-                <strong data-i18n="selectTask">Select a task</strong>
-                <span data-i18n="selectTaskHelp">Choose a task row to inspect its result and evidence.</span>
-              </div>
-            </div>
+            <div class="panel-heading"><div><p class="eyebrow" data-i18n="inspection">Inspection</p><h2 id="inspector-heading" data-i18n="resultAndArtifacts">Result &amp; artifacts</h2></div></div>
+            <div id="inspector-content" class="inspector-content"><div class="mlh-empty"><strong data-i18n="selectTask">Select a task</strong><span data-i18n="selectTaskHelp">Choose a task row to inspect its contract and evidence.</span></div></div>
           </section>
 
           <section class="mlh-panel timeline-panel" aria-labelledby="timeline-heading">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow" data-i18n="audit">Audit</p>
-                <h2 id="timeline-heading" data-i18n="eventTimeline">Event timeline</h2>
-              </div>
-            </div>
+            <div class="panel-heading"><div><p class="eyebrow" data-i18n="audit">Audit</p><h2 id="timeline-heading" data-i18n="eventTimeline">Event timeline</h2></div></div>
             <ol id="event-list" class="event-list"></ol>
           </section>
         </div>
@@ -177,111 +133,32 @@
 
     <dialog id="run-dialog" class="control-dialog">
       <form method="dialog" id="run-form" class="mlh-form">
-        <div class="dialog-heading">
-          <h2 data-i18n="newControlRun">New control run</h2>
-          <button class="mlh-icon-button" value="cancel" aria-label="Close" type="submit">×</button>
-        </div>
-        <label class="mlh-field">
-          <span data-i18n="objective">Objective</span>
-          <textarea name="objective" rows="4" required></textarea>
-        </label>
+        <div class="dialog-heading"><h2 data-i18n="newControlRun">New control run</h2><button class="mlh-icon-button" value="cancel" aria-label="Close" type="submit">×</button></div>
+        <label class="mlh-field"><span data-i18n="objective">Objective</span><textarea name="objective" rows="4" required></textarea></label>
         <div class="mlh-field-row">
-          <label class="mlh-field">
-            <span data-i18n="mode">Mode</span>
-            <select name="executionMode">
-              <option value="dry-run">Dry run</option>
-              <option value="live">Live</option>
-            </select>
-          </label>
-          <label class="mlh-field">
-            <span data-i18n="maxRounds">Max round trips</span>
-            <input name="maxRoundTrips" type="number" min="1" max="64" value="8">
-          </label>
+          <label class="mlh-field"><span data-i18n="mode">Mode</span><select name="executionMode"><option value="dry-run">Dry run</option><option value="live">Live</option></select></label>
+          <label class="mlh-field"><span data-i18n="maxRounds">Max round trips</span><input name="maxRoundTrips" type="number" min="1" max="64" value="8"></label>
         </div>
-        <label class="mlh-field">
-          <span data-i18n="controllerThread">Controller thread ID</span>
-          <input name="controllerThreadId" type="text" autocomplete="off">
-          <small class="mlh-help" data-i18n="controllerThreadHelp">Optional reciprocal address for worker reports.</small>
-        </label>
-        <div class="dialog-actions">
-          <button class="mlh-button is-quiet" value="cancel" type="submit" data-i18n="cancel">Cancel</button>
-          <button class="mlh-button is-primary" value="create" type="submit" data-i18n="create">Create</button>
-        </div>
+        <label class="mlh-field"><span data-i18n="controllerThread">Controller thread ID</span><input name="controllerThreadId" type="text" autocomplete="off"></label>
+        <div class="dialog-actions"><button class="mlh-button is-quiet" value="cancel" type="submit" data-i18n="cancel">Cancel</button><button class="mlh-button is-primary" value="create" type="submit" data-i18n="create">Create</button></div>
       </form>
     </dialog>
 
     <dialog id="task-dialog" class="control-dialog">
       <form method="dialog" id="task-form" class="mlh-form">
-        <div class="dialog-heading">
-          <h2 data-i18n="addControlledTask">Add controlled task</h2>
-          <button class="mlh-icon-button" value="cancel" aria-label="Close" type="submit">×</button>
-        </div>
-        <div class="mlh-field-row">
-          <label class="mlh-field">
-            <span data-i18n="title">Title</span>
-            <input name="title" type="text" required>
-          </label>
-          <label class="mlh-field">
-            <span data-i18n="role">Role</span>
-            <input name="role" type="text" placeholder="implementation" required>
-          </label>
-        </div>
-        <label class="mlh-field">
-          <span data-i18n="prompt">Prompt</span>
-          <textarea name="prompt" rows="5" required></textarea>
-        </label>
-        <label class="mlh-field">
-          <span data-i18n="workingDirectory">Working directory</span>
-          <input name="cwd" type="text" required>
-        </label>
+        <div class="dialog-heading"><h2 data-i18n="addControlledTask">Add controlled task</h2><button class="mlh-icon-button" value="cancel" aria-label="Close" type="submit">×</button></div>
+        <div class="mlh-field-row"><label class="mlh-field"><span data-i18n="title">Title</span><input name="title" type="text" required></label><label class="mlh-field"><span data-i18n="role">Role</span><input name="role" type="text" placeholder="implementation" required></label></div>
+        <label class="mlh-field"><span data-i18n="prompt">Prompt</span><textarea name="prompt" rows="5" required></textarea></label>
+        <label class="mlh-field"><span data-i18n="workingDirectory">Working directory</span><input name="cwd" type="text" required></label>
         <div class="mlh-field-row three">
-          <label class="mlh-field">
-            <span data-i18n="model">Model</span>
-            <input name="model" type="text" value="gpt-5.6-terra" required>
-          </label>
-          <label class="mlh-field">
-            <span data-i18n="effort">Effort</span>
-            <select name="effort">
-              <option>none</option>
-              <option>minimal</option>
-              <option>low</option>
-              <option selected>medium</option>
-              <option>high</option>
-              <option>xhigh</option>
-              <option>max</option>
-              <option>ultra</option>
-            </select>
-          </label>
-          <label class="mlh-field">
-            <span data-i18n="sandbox">Sandbox</span>
-            <select name="sandbox">
-              <option value="read-only">read-only</option>
-              <option value="workspace-write" selected>workspace-write</option>
-              <option value="danger-full-access">danger-full-access</option>
-            </select>
-          </label>
+          <label class="mlh-field"><span data-i18n="environment">Environment</span><select name="environment"><option value="auto">Auto</option><option value="local">Local</option><option value="worktree">Worktree</option></select></label>
+          <label class="mlh-field"><span data-i18n="workflow">Workflow</span><select name="workerMode"><option value="direct">Direct</option><option value="coding-agents">Coding Agents</option></select></label>
+          <label class="mlh-field"><span data-i18n="thinking">Thinking</span><select name="thinking"><option value="">Host default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option><option>ultra</option></select></label>
         </div>
-        <div class="dialog-actions">
-          <button class="mlh-button is-quiet" value="cancel" type="submit" data-i18n="cancel">Cancel</button>
-          <button class="mlh-button is-primary" value="create" type="submit" data-i18n="addTask">Add task</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="confirm-dialog" class="control-dialog is-compact">
-      <form method="dialog" id="confirm-form">
-        <div class="dialog-heading">
-          <h2 id="confirm-title" data-i18n="confirmAction">Confirm action</h2>
-        </div>
-        <p id="confirm-message"></p>
-        <label class="mlh-field" id="confirm-note-field">
-          <span data-i18n="note">Note</span>
-          <textarea id="confirm-note" rows="3"></textarea>
-        </label>
-        <div class="dialog-actions">
-          <button class="mlh-button is-quiet" value="cancel" type="submit" data-i18n="cancel">Cancel</button>
-          <button class="mlh-button is-danger" value="confirm" type="submit" data-i18n="confirm">Confirm</button>
-        </div>
+        <label class="mlh-field"><span data-i18n="codingScope">Coding Agents scope</span><input name="codingAgentsScope" type="text"><small class="mlh-help" data-i18n="codingScopeHelp">Required only for Coding Agents workers.</small></label>
+        <div class="mlh-field-row"><label class="mlh-field"><span data-i18n="model">Model override</span><input name="model" type="text" placeholder="Host default"></label><label class="mlh-field"><span data-i18n="authority">Override authority</span><input name="profileAuthority" type="text" placeholder="user_request:..."></label></div>
+        <label class="mlh-field"><span data-i18n="criteria">Acceptance criteria</span><textarea name="acceptanceCriteria" rows="3" placeholder="One criterion per line"></textarea></label>
+        <div class="dialog-actions"><button class="mlh-button is-quiet" value="cancel" type="submit" data-i18n="cancel">Cancel</button><button class="mlh-button is-primary" value="create" type="submit" data-i18n="addTask">Add task</button></div>
       </form>
     </dialog>
 

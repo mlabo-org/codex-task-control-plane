@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.codex/session-control-plane/run.schema.json",
-  "title": "Control Plane Run",
+  "$id": "https://github.com/mlabo-org/codex-session-control-plane/schemas/run.schema.json",
+  "title": "Codex Thread Orchestration Run",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,125 +9,61 @@
     "objective",
     "status",
     "executionMode",
-    "createdAt",
-    "updatedAt",
     "controller",
     "tasks",
-    "sessions",
+    "threads",
+    "operations",
     "messages",
-    "events"
+    "events",
+    "createdAt",
+    "updatedAt"
   ],
   "properties": {
-    "id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "objective": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000
-    },
+    "id": { "type": "string", "pattern": "^run_" },
+    "objective": { "type": "string", "minLength": 1 },
     "status": {
-      "enum": [
-        "draft",
-        "active",
-        "review",
-        "completed",
-        "failed",
-        "cancelled"
-      ]
-    },
-    "executionMode": {
-      "enum": [
-        "dry-run",
-        "live"
-      ]
-    },
-    "createdAt": {
       "type": "string",
-      "format": "date-time"
+      "enum": ["active", "review", "completed", "failed", "cancelled"]
     },
-    "updatedAt": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "maxRoundTrips": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 64
-    },
-    "controller": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "role"
-      ],
-      "properties": {
-        "role": {
-          "const": "controller"
-        },
-        "threadId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "hostId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
+    "executionMode": { "type": "string", "enum": ["dry-run", "live"] },
+    "maxRoundTrips": { "type": "integer", "minimum": 1, "maximum": 64 },
+    "controller": { "$ref": "#/$defs/address" },
     "tasks": {
       "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/task"
-      }
+      "additionalProperties": { "$ref": "#/$defs/task" }
     },
-    "sessions": {
+    "threads": {
       "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/session"
-      }
+      "additionalProperties": { "$ref": "#/$defs/thread" }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/operation" }
     },
     "messages": {
-      "type": "array"
+      "type": "array",
+      "items": { "$ref": "./message.schema.json" }
     },
     "events": {
-      "type": "array"
-    }
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
   },
   "$defs": {
-    "executionProfile": {
+    "nullableString": { "type": ["string", "null"] },
+    "address": {
       "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "model",
-        "effort"
-      ],
+      "required": ["threadId", "hostId"],
       "properties": {
-        "model": {
-          "type": "string",
-          "minLength": 1
-        },
-        "effort": {
-          "type": "string",
-          "minLength": 1
-        },
-        "sandbox": {
-          "enum": [
-            "read-only",
-            "workspace-write",
-            "danger-full-access"
-          ]
-        }
+        "role": { "type": "string" },
+        "threadId": { "$ref": "#/$defs/nullableString" },
+        "hostId": { "$ref": "#/$defs/nullableString" }
       }
     },
     "task": {
       "type": "object",
-      "additionalProperties": false,
       "required": [
         "id",
         "title",
@@ -135,137 +71,106 @@
         "role",
         "cwd",
         "status",
+        "target",
         "profile",
-        "createdAt",
-        "updatedAt",
+        "workflow",
+        "acceptanceCriteria",
         "roundTrips",
-        "artifacts",
-        "verification"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "prompt": {
-          "type": "string"
-        },
-        "role": {
-          "type": "string"
-        },
-        "cwd": {
-          "type": "string"
-        },
-        "status": {
-          "enum": [
-            "created",
-            "dispatched",
-            "accepted",
-            "running",
-            "blocked",
-            "review",
-            "completed",
-            "failed",
-            "cancelled"
-          ]
-        },
-        "profile": {
-          "$ref": "#/$defs/executionProfile"
-        },
-        "sessionId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "activeTurnId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "roundTrips": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "result": {},
-        "error": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "artifacts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "verification": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "session": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "role",
-        "cwd",
-        "status",
-        "profile",
         "createdAt",
         "updatedAt"
       ],
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "hostId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "role": {
-          "type": "string"
-        },
-        "cwd": {
-          "type": "string"
-        },
+        "id": { "type": "string", "pattern": "^task_" },
+        "title": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "cwd": { "type": "string", "minLength": 1 },
         "status": {
+          "type": "string",
           "enum": [
-            "planned",
-            "starting",
+            "created",
+            "prepared",
+            "provisioning",
+            "running",
             "idle",
-            "active",
             "blocked",
-            "completed",
+            "needs_attention",
+            "review",
             "failed",
-            "archived"
+            "cancel_requested",
+            "completed",
+            "cancelled"
           ]
         },
-        "profile": {
-          "$ref": "#/$defs/executionProfile"
+        "threadTitle": { "$ref": "#/$defs/nullableString" },
+        "threadId": { "$ref": "#/$defs/nullableString" },
+        "hostId": { "$ref": "#/$defs/nullableString" },
+        "clientThreadId": { "$ref": "#/$defs/nullableString" },
+        "sourceTaskId": { "$ref": "#/$defs/nullableString" },
+        "project": { "type": ["object", "null"] },
+        "target": { "type": "object" },
+        "profile": { "type": "object" },
+        "workflow": { "type": "object" },
+        "acceptanceCriteria": { "type": "array", "items": { "type": "string" } },
+        "roundTrips": { "type": "integer", "minimum": 0 },
+        "lastCursor": { "$ref": "#/$defs/nullableString" },
+        "result": { "type": ["object", "null"] },
+        "error": { "type": ["object", "null"] },
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "verification": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "thread": {
+      "type": "object",
+      "required": ["taskId", "status", "pinned", "archived", "createdAt", "updatedAt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nullableString" },
+        "hostId": { "$ref": "#/$defs/nullableString" },
+        "clientThreadId": { "$ref": "#/$defs/nullableString" },
+        "taskId": { "type": "string" },
+        "sourceTaskId": { "$ref": "#/$defs/nullableString" },
+        "title": { "$ref": "#/$defs/nullableString" },
+        "project": { "type": ["object", "null"] },
+        "status": {
+          "type": "string",
+          "enum": ["provisioning", "active", "idle", "blocked", "needs_attention", "handoff", "completed", "failed", "archived"]
         },
-        "createdAt": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string"
-        }
+        "previousStatus": { "$ref": "#/$defs/nullableString" },
+        "pinned": { "type": "boolean" },
+        "archived": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "required": ["id", "kind", "tool", "status", "phase", "taskIds", "createdAt", "updatedAt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^op_" },
+        "kind": { "type": "string", "enum": ["dispatch", "native"] },
+        "tool": { "type": "string", "pattern": "^codex_app__" },
+        "status": { "type": "string", "enum": ["prepared", "pending", "succeeded", "failed"] },
+        "phase": { "type": "string", "enum": ["project_lookup", "ready"] },
+        "taskIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "arguments": { "type": ["object", "null"] },
+        "metadata": { "type": "object" },
+        "result": { "type": ["object", "null"] },
+        "error": { "type": ["object", "null"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": ["id", "type", "summary", "details", "at"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^evt_" },
+        "type": { "type": "string" },
+        "summary": { "type": "string" },
+        "details": { "type": "object" },
+        "at": { "type": "string", "format": "date-time" }
       }
     }
   }

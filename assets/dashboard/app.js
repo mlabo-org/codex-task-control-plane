@@ -10,631 +10,193 @@ const state = {
 
 const translations = {
   en: {
-    upperControl: "Upper Control",
-    newRun: "New run",
-    runs: "Runs",
-    connecting: "Connecting",
-    connected: "Connected",
-    disconnected: "Disconnected",
-    controlPlane: "Control plane",
-    noRunSelected: "No run selected",
-    language: "Language",
-    theme: "Theme",
-    refresh: "Refresh",
-    runStatus: "Run status",
-    sessions: "Sessions",
-    tasks: "Tasks",
-    awaitingReview: "Awaiting review",
-    workQueue: "Work queue",
-    addTask: "Add task",
-    role: "Role",
-    task: "Task",
-    profile: "Profile",
-    status: "Status",
-    actions: "Actions",
-    noTasks: "No tasks",
-    noTasksHelp: "Add a bounded task to begin planning.",
-    runtime: "Runtime",
-    session: "Session",
-    model: "Model",
-    noSessions: "No sessions",
-    noSessionsHelp: "A session appears after a task is dispatched.",
-    inspection: "Inspection",
-    resultAndArtifacts: "Result & artifacts",
-    selectTask: "Select a task",
-    selectTaskHelp: "Choose a task row to inspect its result and evidence.",
-    audit: "Audit",
-    eventTimeline: "Event timeline",
-    newControlRun: "New control run",
-    objective: "Objective",
-    mode: "Mode",
-    maxRounds: "Max round trips",
-    controllerThread: "Controller thread ID",
-    controllerThreadHelp: "Optional reciprocal address for worker reports.",
-    cancel: "Cancel",
-    create: "Create",
-    addControlledTask: "Add controlled task",
-    title: "Title",
-    prompt: "Prompt",
-    workingDirectory: "Working directory",
-    effort: "Effort",
-    sandbox: "Sandbox",
-    confirmAction: "Confirm action",
-    note: "Note",
-    confirm: "Confirm",
-    preview: "Preview",
-    dispatch: "Dispatch",
-    poll: "Poll",
-    accept: "Accept",
-    reject: "Reject",
-    stop: "Stop",
-    archive: "Archive",
-    evidence: "Verification",
-    artifacts: "Artifacts",
-    result: "Result",
-    noEvidence: "No verification evidence",
-    noArtifacts: "No artifacts",
-    liveWarning: "This creates or changes a real Codex session. Continue?",
-    stopWarning: "Interrupt and cancel this controlled task?",
-    archiveWarning: "Archive this Codex session?",
-    rejectWarning: "Reject this result and return the task for another turn?",
-    actionCompleted: "Action completed",
-    actionFailed: "Action failed",
-    loadFailed: "Could not load control-plane state"
+    upperControl: "Upper Control", newRun: "New run", runs: "Runs", connecting: "Connecting", connected: "Connected", disconnected: "Disconnected",
+    controlPlane: "Thread orchestration", noRunSelected: "No run selected", language: "Language", theme: "Theme", refresh: "Refresh",
+    runtimeBoundary: "Runtime boundary", runtimeBoundaryHelp: "This dashboard stores state and prepares calls. The active Codex controller executes native task tools.",
+    runStatus: "Run status", threads: "Threads", tasks: "Tasks", operations: "Operations", workQueue: "Work queue", addTask: "Add task",
+    role: "Role", task: "Task", workflow: "Workflow", status: "Status", actions: "Actions", noTasks: "No tasks", noTasksHelp: "Add one bounded worker contract.",
+    nativeRuntime: "Native runtime", thread: "Thread", environment: "Environment", noThreads: "No threads", noThreadsHelp: "A native task binding appears after the controller records a launch.",
+    intentLedger: "Intent ledger", tool: "Tool", target: "Target", phase: "Phase", noOperations: "No operations", noOperationsHelp: "Prepared native calls and their results appear here.",
+    inspection: "Inspection", resultAndArtifacts: "Result & artifacts", selectTask: "Select a task", selectTaskHelp: "Choose a task row to inspect its contract and evidence.",
+    audit: "Audit", eventTimeline: "Event timeline", newControlRun: "New control run", objective: "Objective", mode: "Mode", maxRounds: "Max round trips",
+    controllerThread: "Controller thread ID", cancel: "Cancel", create: "Create", addControlledTask: "Add controlled task", title: "Title", prompt: "Prompt",
+    workingDirectory: "Working directory", thinking: "Thinking", codingScope: "Coding Agents scope", codingScopeHelp: "Required only for Coding Agents workers.",
+    model: "Model override", authority: "Override authority", criteria: "Acceptance criteria", prepare: "Prepare", simulate: "Simulate", accept: "Accept", continue: "Continue", requestCancel: "Cancel request",
+    evidence: "Verification", artifacts: "Artifacts", result: "Result", contract: "Contract", noEvidence: "No verification evidence", noArtifacts: "No artifacts",
+    actionCompleted: "Action completed", actionFailed: "Action failed", loadFailed: "Could not load control-plane state"
   },
   ja: {
-    upperControl: "上位管制",
-    newRun: "新規Run",
-    runs: "Run一覧",
-    connecting: "接続中",
-    connected: "接続済み",
-    disconnected: "切断",
-    controlPlane: "管制面",
-    noRunSelected: "Runが選択されていません",
-    language: "言語",
-    theme: "テーマ",
-    refresh: "更新",
-    runStatus: "Run状態",
-    sessions: "セッション",
-    tasks: "タスク",
-    awaitingReview: "審査待ち",
-    workQueue: "作業キュー",
-    addTask: "タスク追加",
-    role: "役割",
-    task: "タスク",
-    profile: "実行プロファイル",
-    status: "状態",
-    actions: "操作",
-    noTasks: "タスクはありません",
-    noTasksHelp: "境界を定めたタスクを追加してください。",
-    runtime: "実行環境",
-    session: "セッション",
-    model: "モデル",
-    noSessions: "セッションはありません",
-    noSessionsHelp: "タスクを配信するとセッションが表示されます。",
-    inspection: "検査",
-    resultAndArtifacts: "結果と成果物",
-    selectTask: "タスクを選択",
-    selectTaskHelp: "行を選択すると結果と検証証跡を確認できます。",
-    audit: "監査",
-    eventTimeline: "イベント履歴",
-    newControlRun: "新規管制Run",
-    objective: "目的",
-    mode: "モード",
-    maxRounds: "最大往復数",
-    controllerThread: "管制スレッドID",
-    controllerThreadHelp: "ワーカーが返信するための相互アドレス。省略可能です。",
-    cancel: "キャンセル",
-    create: "作成",
-    addControlledTask: "管制タスクを追加",
-    title: "タイトル",
-    prompt: "指示",
-    workingDirectory: "作業ディレクトリ",
-    effort: "推論深度",
-    sandbox: "サンドボックス",
-    confirmAction: "操作の確認",
-    note: "注記",
-    confirm: "実行",
-    preview: "確認",
-    dispatch: "配信",
-    poll: "状態取得",
-    accept: "受理",
-    reject: "差し戻し",
-    stop: "停止",
-    archive: "保管",
-    evidence: "検証証跡",
-    artifacts: "成果物",
-    result: "結果",
-    noEvidence: "検証証跡なし",
-    noArtifacts: "成果物なし",
-    liveWarning: "実在するCodexセッションを作成または変更します。続行しますか？",
-    stopWarning: "この管制タスクを中断してキャンセルしますか？",
-    archiveWarning: "このCodexセッションをアーカイブしますか？",
-    rejectWarning: "結果を差し戻し、次のターンへ戻しますか？",
-    actionCompleted: "操作が完了しました",
-    actionFailed: "操作に失敗しました",
-    loadFailed: "管制状態を読み込めませんでした"
+    upperControl: "上位管制", newRun: "新規Run", runs: "Run一覧", connecting: "接続中", connected: "接続済み", disconnected: "切断",
+    controlPlane: "スレッド・オーケストレーション", noRunSelected: "Runが選択されていません", language: "言語", theme: "テーマ", refresh: "更新",
+    runtimeBoundary: "実行責任境界", runtimeBoundaryHelp: "この画面は状態を保存し呼び出しを準備します。純正taskツールの実行はアクティブなCodex管制役が担当します。",
+    runStatus: "Run状態", threads: "スレッド", tasks: "タスク", operations: "操作", workQueue: "作業キュー", addTask: "タスク追加",
+    role: "役割", task: "タスク", workflow: "ワークフロー", status: "状態", actions: "操作", noTasks: "タスクはありません", noTasksHelp: "境界を定めたワーカー契約を追加してください。",
+    nativeRuntime: "純正ランタイム", thread: "スレッド", environment: "環境", noThreads: "スレッドはありません", noThreadsHelp: "管制役が起動結果を記録すると純正taskの紐付けが表示されます。",
+    intentLedger: "呼び出し台帳", tool: "ツール", target: "対象", phase: "段階", noOperations: "操作はありません", noOperationsHelp: "準備済みの純正ツール呼び出しと結果が表示されます。",
+    inspection: "詳細", resultAndArtifacts: "結果と成果物", selectTask: "タスクを選択", selectTaskHelp: "行を選ぶと契約と証跡を確認できます。",
+    audit: "監査", eventTimeline: "イベント履歴", newControlRun: "新規管制Run", objective: "目的", mode: "モード", maxRounds: "最大往復数",
+    controllerThread: "管制スレッドID", cancel: "キャンセル", create: "作成", addControlledTask: "管制タスクを追加", title: "タイトル", prompt: "指示",
+    workingDirectory: "作業ディレクトリ", thinking: "推論深度", codingScope: "Coding Agentsスコープ", codingScopeHelp: "Coding Agentsワーカーの場合のみ必須です。",
+    model: "モデル上書き", authority: "上書き根拠", criteria: "受け入れ条件", prepare: "準備", simulate: "模擬完了", accept: "受理", continue: "継続", requestCancel: "取消要求",
+    evidence: "検証証跡", artifacts: "成果物", result: "結果", contract: "契約", noEvidence: "検証証跡なし", noArtifacts: "成果物なし",
+    actionCompleted: "操作が完了しました", actionFailed: "操作に失敗しました", loadFailed: "管制状態を読み込めませんでした"
   }
 };
 
 const elements = {
-  runList: document.querySelector("#run-list"),
-  runTitle: document.querySelector("#run-title"),
-  taskRows: document.querySelector("#task-rows"),
-  sessionRows: document.querySelector("#session-rows"),
-  taskEmpty: document.querySelector("#task-empty"),
-  sessionEmpty: document.querySelector("#session-empty"),
-  inspector: document.querySelector("#inspector-content"),
-  eventList: document.querySelector("#event-list"),
-  notice: document.querySelector("#notice"),
-  connection: document.querySelector("#connection-status"),
-  newRun: document.querySelector("#new-run-button"),
-  addTask: document.querySelector("#add-task-button"),
-  refresh: document.querySelector("#refresh-button"),
-  language: document.querySelector("#language-select"),
-  theme: document.querySelector("#theme-select"),
-  runDialog: document.querySelector("#run-dialog"),
-  runForm: document.querySelector("#run-form"),
-  taskDialog: document.querySelector("#task-dialog"),
-  taskForm: document.querySelector("#task-form"),
-  confirmDialog: document.querySelector("#confirm-dialog"),
-  confirmForm: document.querySelector("#confirm-form"),
-  confirmMessage: document.querySelector("#confirm-message"),
-  confirmNote: document.querySelector("#confirm-note"),
-  confirmNoteField: document.querySelector("#confirm-note-field"),
-  metrics: {
-    status: document.querySelector("#metric-run-status"),
-    sessions: document.querySelector("#metric-sessions"),
-    tasks: document.querySelector("#metric-tasks"),
-    review: document.querySelector("#metric-review")
-  }
+  runList: document.querySelector("#run-list"), runTitle: document.querySelector("#run-title"), taskRows: document.querySelector("#task-rows"),
+  threadRows: document.querySelector("#thread-rows"), operationRows: document.querySelector("#operation-rows"), taskEmpty: document.querySelector("#task-empty"),
+  threadEmpty: document.querySelector("#thread-empty"), operationEmpty: document.querySelector("#operation-empty"), inspector: document.querySelector("#inspector-content"),
+  eventList: document.querySelector("#event-list"), notice: document.querySelector("#notice"), connection: document.querySelector("#connection-status"),
+  newRun: document.querySelector("#new-run-button"), addTask: document.querySelector("#add-task-button"), refresh: document.querySelector("#refresh-button"),
+  language: document.querySelector("#language-select"), theme: document.querySelector("#theme-select"), runDialog: document.querySelector("#run-dialog"),
+  runForm: document.querySelector("#run-form"), taskDialog: document.querySelector("#task-dialog"), taskForm: document.querySelector("#task-form"),
+  metrics: { status: document.querySelector("#metric-run-status"), threads: document.querySelector("#metric-threads"), tasks: document.querySelector("#metric-tasks"), operations: document.querySelector("#metric-operations") }
 };
 
 elements.language.value = state.languagePreference;
 elements.theme.value = state.themePreference;
 applyLanguage();
 applyTheme();
-
-elements.language.addEventListener("change", () => {
-  state.languagePreference = elements.language.value;
-  localStorage.setItem("control-plane-language", state.languagePreference);
-  applyLanguage();
-  render();
-});
-elements.theme.addEventListener("change", () => {
-  state.themePreference = elements.theme.value;
-  localStorage.setItem("control-plane-theme", state.themePreference);
-  applyTheme();
-});
+elements.language.addEventListener("change", () => { state.languagePreference = elements.language.value; localStorage.setItem("control-plane-language", state.languagePreference); applyLanguage(); render(); });
+elements.theme.addEventListener("change", () => { state.themePreference = elements.theme.value; localStorage.setItem("control-plane-theme", state.themePreference); applyTheme(); });
 elements.refresh.addEventListener("click", refresh);
 elements.newRun.addEventListener("click", () => elements.runDialog.showModal());
-elements.addTask.addEventListener("click", () => {
-  if (!state.runId) return;
-  elements.taskForm.elements.cwd.value = selectedRun()?.tasks
-    ? Object.values(selectedRun().tasks)[0]?.cwd || ""
-    : "";
-  elements.taskDialog.showModal();
-});
+elements.addTask.addEventListener("click", () => { if (!state.runId) return; elements.taskForm.elements.cwd.value = Object.values(selectedRun()?.tasks || {})[0]?.cwd || ""; elements.taskDialog.showModal(); });
 
 elements.runForm.addEventListener("submit", async (event) => {
   if (event.submitter?.value !== "create") return;
   event.preventDefault();
   const form = new FormData(elements.runForm);
-  const result = await action("createRun", {
-    objective: form.get("objective"),
-    executionMode: form.get("executionMode"),
-    maxRoundTrips: Number(form.get("maxRoundTrips")),
-    controllerThreadId: emptyToNull(form.get("controllerThreadId"))
-  });
+  const result = await action("createRun", { objective: form.get("objective"), executionMode: form.get("executionMode"), maxRoundTrips: Number(form.get("maxRoundTrips")), controllerThreadId: emptyToNull(form.get("controllerThreadId")) });
   if (!result) return;
-  state.runId = result.id;
-  state.taskId = null;
-  elements.runForm.reset();
-  elements.runDialog.close();
-  await refresh();
+  state.runId = result.id; state.taskId = null; elements.runForm.reset(); elements.runDialog.close(); await refresh();
 });
 
 elements.taskForm.addEventListener("submit", async (event) => {
   if (event.submitter?.value !== "create") return;
   event.preventDefault();
   const form = new FormData(elements.taskForm);
-  const result = await action("addTask", {
-    runId: state.runId,
-    title: form.get("title"),
-    role: form.get("role"),
-    prompt: form.get("prompt"),
-    cwd: form.get("cwd"),
-    model: form.get("model"),
-    effort: form.get("effort"),
-    sandbox: form.get("sandbox")
-  });
+  const input = {
+    runId: state.runId, title: form.get("title"), role: form.get("role"), prompt: form.get("prompt"), cwd: form.get("cwd"),
+    environment: form.get("environment"), workerMode: form.get("workerMode"), acceptanceCriteria: lines(form.get("acceptanceCriteria"))
+  };
+  for (const key of ["thinking", "model", "profileAuthority", "codingAgentsScope"]) {
+    const value = emptyToNull(form.get(key)); if (value) input[key] = value;
+  }
+  const result = await action("addTask", input);
   if (!result) return;
-  state.taskId = result.id;
-  elements.taskForm.reset();
-  elements.taskDialog.close();
-  await refresh();
+  state.taskId = result.id; elements.taskForm.reset(); elements.taskDialog.close(); await refresh();
 });
 
-elements.taskRows.addEventListener("click", handleTaskClick);
-elements.sessionRows.addEventListener("click", handleSessionClick);
+elements.taskRows.addEventListener("click", async (event) => {
+  const row = event.target.closest("tr[data-task-id]"); if (!row) return;
+  state.taskId = row.dataset.taskId;
+  const command = event.target.closest("button[data-action]")?.dataset.action;
+  if (!command) { render(); return; }
+  const task = selectedTask();
+  if (command === "prepare") await action("prepareDispatch", { runId: state.runId, taskId: task.id });
+  if (command === "simulate") await action("simulateTask", { runId: state.runId, taskId: task.id, summary: "Dashboard dry-run simulation", verification: ["No native task call was executed"], artifacts: [] });
+  if (command === "accept" || command === "continue") await action("decide", { runId: state.runId, taskId: task.id, decision: command, note: `${command} from dashboard` });
+  if (command === "cancel") await action("requestCancel", { runId: state.runId, taskId: task.id, reason: "Cancellation requested from dashboard" });
+  await refresh();
+});
 
 await refresh();
 state.timer = window.setInterval(refresh, 5000);
 
 async function refresh() {
   try {
-    const response = await fetch("/api/snapshot", { cache: "no-store" });
-    const body = await response.json();
+    const body = await fetch("/api/snapshot", { cache: "no-store" }).then((response) => response.json());
     if (!body.ok) throw new Error(body.error?.message || "Snapshot failed");
     state.ledger = body.snapshot;
-    const runs = Object.values(state.ledger.runs || {});
-    if (!state.runId || !state.ledger.runs[state.runId]) {
-      state.runId = runs.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]?.id || null;
-      state.taskId = null;
-    }
-    setConnection(true);
-    render();
-  } catch (error) {
-    setConnection(false);
-    showNotice(`${t("loadFailed")}: ${error.message}`, "danger");
-  }
+    const runs = Object.values(state.ledger.runs || {}).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (!state.runId || !state.ledger.runs[state.runId]) { state.runId = runs[0]?.id || null; state.taskId = null; }
+    setConnection(true); render();
+  } catch (error) { setConnection(false); showNotice(`${t("loadFailed")}: ${error.message}`, "danger"); }
 }
 
-function render() {
-  renderRuns();
-  renderSummary();
-  renderTasks();
-  renderSessions();
-  renderInspector();
-  renderEvents();
-  applyLanguage();
-}
+function render() { renderRuns(); renderSummary(); renderTasks(); renderThreads(); renderOperations(); renderInspector(); renderEvents(); applyLanguage(); }
 
 function renderRuns() {
-  const runs = Object.values(state.ledger?.runs || {}).sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt)
-  );
-  elements.runList.replaceChildren(
-    ...runs.map((run) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "run-button";
-      button.setAttribute("aria-current", String(run.id === state.runId));
-      button.innerHTML = `<strong>${escapeHtml(run.objective)}</strong><small>${escapeHtml(run.status)} · ${escapeHtml(run.executionMode)}</small>`;
-      button.addEventListener("click", () => {
-        state.runId = run.id;
-        state.taskId = null;
-        render();
-      });
-      return button;
-    })
-  );
+  const runs = Object.values(state.ledger?.runs || {}).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  elements.runList.replaceChildren(...runs.map((run) => {
+    const button = document.createElement("button"); button.type = "button"; button.className = "run-button"; button.setAttribute("aria-current", String(run.id === state.runId));
+    button.innerHTML = `<strong>${escapeHtml(run.objective)}</strong><small>${escapeHtml(run.status)} · ${escapeHtml(run.executionMode)}</small>`;
+    button.addEventListener("click", () => { state.runId = run.id; state.taskId = null; render(); }); return button;
+  }));
 }
 
 function renderSummary() {
-  const run = selectedRun();
-  elements.addTask.disabled = !run || !["draft", "active"].includes(run.status);
-  if (!run) {
-    elements.runTitle.dataset.i18n = "noRunSelected";
-    elements.metrics.status.textContent = "—";
-    elements.metrics.sessions.textContent = "0";
-    elements.metrics.tasks.textContent = "0";
-    elements.metrics.review.textContent = "0";
-    return;
-  }
-  delete elements.runTitle.dataset.i18n;
-  elements.runTitle.textContent = run.objective;
-  const tasks = Object.values(run.tasks || {});
-  elements.metrics.status.textContent = run.status;
-  elements.metrics.sessions.textContent = String(Object.keys(run.sessions || {}).length);
-  elements.metrics.tasks.textContent = String(tasks.length);
-  elements.metrics.review.textContent = String(tasks.filter((task) => task.status === "review").length);
+  const run = selectedRun(); elements.addTask.disabled = !run || ["completed", "cancelled"].includes(run.status);
+  if (!run) { elements.runTitle.dataset.i18n = "noRunSelected"; elements.metrics.status.textContent = "—"; elements.metrics.threads.textContent = "0"; elements.metrics.tasks.textContent = "0"; elements.metrics.operations.textContent = "0"; return; }
+  delete elements.runTitle.dataset.i18n; elements.runTitle.textContent = run.objective; elements.metrics.status.textContent = run.status;
+  elements.metrics.threads.textContent = String(Object.keys(run.threads || {}).length); elements.metrics.tasks.textContent = String(Object.keys(run.tasks || {}).length); elements.metrics.operations.textContent = String(Object.keys(run.operations || {}).length);
 }
 
 function renderTasks() {
-  const run = selectedRun();
-  const tasks = Object.values(run?.tasks || {});
-  elements.taskEmpty.hidden = tasks.length > 0;
-  elements.taskRows.replaceChildren(
-    ...tasks.map((task) => {
-      const row = document.createElement("tr");
-      row.dataset.taskId = task.id;
-      row.classList.toggle("is-selected", task.id === state.taskId);
-      row.innerHTML = `
-        <td>${escapeHtml(task.role)}</td>
-        <td><strong>${escapeHtml(task.title)}</strong><br><code>${shortId(task.id)}</code></td>
-        <td><span class="profile-stack"><code>${escapeHtml(task.profile.model)}</code><small>${escapeHtml(task.profile.effort)} · ${escapeHtml(task.profile.sandbox)}</small></span></td>
-        <td>${statusChip(task.status)}</td>
-        <td><div class="table-actions">${taskActions(task, run)}</div></td>
-      `;
-      return row;
-    })
-  );
+  const run = selectedRun(); const tasks = Object.values(run?.tasks || {}); elements.taskEmpty.hidden = tasks.length > 0;
+  elements.taskRows.replaceChildren(...tasks.map((task) => {
+    const row = document.createElement("tr"); row.dataset.taskId = task.id; row.classList.toggle("is-selected", task.id === state.taskId);
+    row.innerHTML = `<td>${escapeHtml(task.role)}</td><td><strong>${escapeHtml(task.title)}</strong><br><code>${shortId(task.threadId || task.clientThreadId || task.id)}</code></td><td><span class="profile-stack"><code>${escapeHtml(task.workflow.mode)}</code><small>${escapeHtml(task.target.environment)} · ${escapeHtml(task.profile.model || "host default")}</small></span></td><td>${statusChip(task.status)}</td><td><div class="table-actions">${taskActions(task, run)}</div></td>`;
+    return row;
+  }));
 }
 
-function renderSessions() {
-  const run = selectedRun();
-  const sessions = Object.values(run?.sessions || {});
-  elements.sessionEmpty.hidden = sessions.length > 0;
-  elements.sessionRows.replaceChildren(
-    ...sessions.map((session) => {
-      const row = document.createElement("tr");
-      row.dataset.sessionId = session.id;
-      row.innerHTML = `
-        <td><code title="${escapeHtml(session.id)}">${shortId(session.id)}</code></td>
-        <td>${escapeHtml(session.role)}</td>
-        <td><span class="profile-stack"><code>${escapeHtml(session.profile.model)}</code><small>${escapeHtml(session.profile.effort)}</small></span></td>
-        <td>${statusChip(session.status)}</td>
-        <td><div class="table-actions"><button class="mlh-button is-small is-quiet" data-session-action="archive">${t("archive")}</button></div></td>
-      `;
-      return row;
-    })
-  );
+function renderThreads() {
+  const run = selectedRun(); const threads = Object.values(run?.threads || {}); elements.threadEmpty.hidden = threads.length > 0;
+  elements.threadRows.replaceChildren(...threads.map((thread) => {
+    const task = run.tasks?.[thread.taskId]; const row = document.createElement("tr");
+    row.innerHTML = `<td><code title="${escapeHtml(thread.id || thread.clientThreadId)}">${shortId(thread.id || thread.clientThreadId)}</code><br><small>${escapeHtml(thread.hostId || "local")}</small></td><td>${escapeHtml(task?.title || thread.taskId)}</td><td>${escapeHtml(thread.project?.environment || task?.target?.environment || "—")}</td><td>${statusChip(thread.status)}</td>`; return row;
+  }));
+}
+
+function renderOperations() {
+  const run = selectedRun(); const operations = Object.values(run?.operations || {}).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); elements.operationEmpty.hidden = operations.length > 0;
+  elements.operationRows.replaceChildren(...operations.map((operation) => {
+    const row = document.createElement("tr"); row.innerHTML = `<td><code>${escapeHtml(operation.tool.replace("codex_app__", ""))}</code></td><td>${operation.taskIds.map(shortId).join(", ") || "—"}</td><td>${escapeHtml(operation.phase)}</td><td>${statusChip(operation.status)}</td>`; return row;
+  }));
 }
 
 function renderInspector() {
-  const task = selectedTask();
-  if (!task) {
-    elements.inspector.innerHTML = `<div class="mlh-empty"><strong>${t("selectTask")}</strong><span>${t("selectTaskHelp")}</span></div>`;
-    return;
-  }
-  elements.inspector.innerHTML = `
-    <section class="inspection-block">
-      <h3>${t("result")}</h3>
-      <pre>${escapeHtml(JSON.stringify(task.result, null, 2) || "—")}</pre>
-    </section>
-    <section class="inspection-block">
-      <h3>${t("artifacts")}</h3>
-      ${renderList(task.artifacts, t("noArtifacts"))}
-    </section>
-    <section class="inspection-block">
-      <h3>${t("evidence")}</h3>
-      ${renderList(task.verification, t("noEvidence"))}
-    </section>
-  `;
+  const task = selectedTask(); if (!task) { elements.inspector.innerHTML = `<div class="mlh-empty"><strong>${t("selectTask")}</strong><span>${t("selectTaskHelp")}</span></div>`; return; }
+  elements.inspector.innerHTML = `<div class="inspector-block"><h3>${t("contract")}</h3><p>${escapeHtml(task.prompt)}</p><code>${escapeHtml(task.cwd)}</code></div><div class="inspector-block"><h3>${t("result")}</h3><p>${escapeHtml(task.result?.summary || "—")}</p></div><div class="inspector-block"><h3>${t("evidence")}</h3>${renderList(task.verification, t("noEvidence"))}</div><div class="inspector-block"><h3>${t("artifacts")}</h3>${renderList(task.artifacts, t("noArtifacts"))}</div>`;
 }
 
 function renderEvents() {
-  const events = [...(selectedRun()?.events || [])].reverse().slice(0, 80);
-  elements.eventList.replaceChildren(
-    ...events.map((entry) => {
-      const item = document.createElement("li");
-      item.className = "event-item";
-      item.innerHTML = `
-        <span class="event-dot" aria-hidden="true"></span>
-        <span class="event-copy"><strong>${escapeHtml(entry.message)}</strong><time datetime="${escapeHtml(entry.at)}">${formatTime(entry.at)}</time></span>
-      `;
-      return item;
-    })
-  );
+  const events = [...(selectedRun()?.events || [])].reverse(); elements.eventList.replaceChildren(...events.map((entry) => {
+    const item = document.createElement("li"); item.innerHTML = `<span class="event-dot" aria-hidden="true"></span><div><strong>${escapeHtml(entry.summary)}</strong><small>${escapeHtml(formatTime(entry.at))} · ${escapeHtml(entry.type)}</small></div>`; return item;
+  }));
 }
 
-async function handleTaskClick(event) {
-  const row = event.target.closest("tr[data-task-id]");
-  if (!row) return;
-  state.taskId = row.dataset.taskId;
-  const actionName = event.target.closest("button[data-task-action]")?.dataset.taskAction;
-  render();
-  if (!actionName) return;
-  const run = selectedRun();
-  const task = selectedTask();
-  if (actionName === "preview") {
-    const result = await action("previewDispatch", { runId: run.id, taskId: task.id });
-    if (result) {
-      task.result = result;
-      renderInspector();
-    }
-    return;
-  }
-  if (actionName === "poll") {
-    await action("poll", { runId: run.id, taskId: task.id });
-    await refresh();
-    return;
-  }
-  if (actionName === "accept") {
-    await action("decide", { runId: run.id, taskId: task.id, decision: "accept" });
-    await refresh();
-    return;
-  }
-  if (actionName === "dispatch") {
-    const confirmed = await confirmAction(t("liveWarning"), false);
-    if (!confirmed.ok) return;
-    await action("dispatch", {
-      runId: run.id,
-      taskId: task.id,
-      confirmLiveDispatch: true
-    });
-    await refresh();
-    return;
-  }
-  if (actionName === "reject") {
-    const confirmed = await confirmAction(t("rejectWarning"), true);
-    if (!confirmed.ok) return;
-    await action("decide", {
-      runId: run.id,
-      taskId: task.id,
-      decision: "reject",
-      note: confirmed.note
-    });
-    await refresh();
-    return;
-  }
-  if (actionName === "stop") {
-    const confirmed = await confirmAction(t("stopWarning"), false);
-    if (!confirmed.ok) return;
-    await action("stop", {
-      runId: run.id,
-      taskId: task.id,
-      confirmLiveDispatch: run.executionMode === "live"
-    });
-    await refresh();
-  }
-}
-
-async function handleSessionClick(event) {
-  const row = event.target.closest("tr[data-session-id]");
-  const actionName = event.target.closest("button[data-session-action]")?.dataset.sessionAction;
-  if (!row || actionName !== "archive") return;
-  const run = selectedRun();
-  const confirmed = await confirmAction(t("archiveWarning"), false);
-  if (!confirmed.ok) return;
-  await action("archive", {
-    runId: run.id,
-    threadId: row.dataset.sessionId,
-    confirmLiveDispatch: run.executionMode === "live"
-  });
-  await refresh();
+function taskActions(task, run) {
+  const actions = [];
+  if (["created", "failed"].includes(task.status)) actions.push(`<button class="mlh-button is-small" data-action="prepare">${t("prepare")}</button>`);
+  if (run.executionMode === "dry-run" && ["created", "prepared"].includes(task.status)) actions.push(`<button class="mlh-button is-small is-quiet" data-action="simulate">${t("simulate")}</button>`);
+  if (task.status === "review") { actions.push(`<button class="mlh-button is-small is-primary" data-action="accept">${t("accept")}</button>`); actions.push(`<button class="mlh-button is-small is-quiet" data-action="continue">${t("continue")}</button>`); }
+  if (!["completed", "failed", "cancelled"].includes(task.status)) actions.push(`<button class="mlh-button is-small is-danger" data-action="cancel">${t("requestCancel")}</button>`);
+  return actions.join("");
 }
 
 async function action(actionName, input) {
   try {
-    const response = await fetch("/api/action", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-control-plane-token": token
-      },
-      body: JSON.stringify({ action: actionName, input })
-    });
-    const body = await response.json();
-    if (!body.ok) throw new Error(body.error?.message || t("actionFailed"));
-    showNotice(t("actionCompleted"), "success");
-    return body.result;
-  } catch (error) {
-    showNotice(`${t("actionFailed")}: ${error.message}`, "danger");
-    return null;
-  }
+    const body = await fetch("/api/action", { method: "POST", headers: { "content-type": "application/json", "x-control-plane-token": token }, body: JSON.stringify({ action: actionName, input }) }).then((response) => response.json());
+    if (!body.ok) throw new Error(body.error?.message || actionName); showNotice(t("actionCompleted"), "success"); return body.result;
+  } catch (error) { showNotice(`${t("actionFailed")}: ${error.message}`, "danger"); return null; }
 }
 
-function confirmAction(message, showNote) {
-  elements.confirmMessage.textContent = message;
-  elements.confirmNote.value = "";
-  elements.confirmNoteField.hidden = !showNote;
-  elements.confirmDialog.showModal();
-  return new Promise((resolve) => {
-    const onClose = () => {
-      elements.confirmDialog.removeEventListener("close", onClose);
-      resolve({
-        ok: elements.confirmDialog.returnValue === "confirm",
-        note: elements.confirmNote.value.trim()
-      });
-    };
-    elements.confirmDialog.addEventListener("close", onClose);
-  });
-}
-
-function taskActions(task, run) {
-  const actions = [`<button class="mlh-button is-small is-quiet" data-task-action="preview">${t("preview")}</button>`];
-  if (task.status === "created" && run.executionMode === "live") {
-    actions.push(`<button class="mlh-button is-small is-primary" data-task-action="dispatch">${t("dispatch")}</button>`);
-  }
-  if (task.status === "running") {
-    actions.push(`<button class="mlh-button is-small is-quiet" data-task-action="poll">${t("poll")}</button>`);
-    actions.push(`<button class="mlh-button is-small is-danger" data-task-action="stop">${t("stop")}</button>`);
-  }
-  if (task.status === "review") {
-    actions.push(`<button class="mlh-button is-small is-primary" data-task-action="accept">${t("accept")}</button>`);
-    actions.push(`<button class="mlh-button is-small is-quiet" data-task-action="reject">${t("reject")}</button>`);
-  }
-  return actions.join("");
-}
-
-function selectedRun() {
-  return state.runId ? state.ledger?.runs?.[state.runId] || null : null;
-}
-
-function selectedTask() {
-  return state.taskId ? selectedRun()?.tasks?.[state.taskId] || null : null;
-}
-
-function activeLanguage() {
-  if (state.languagePreference !== "system") return state.languagePreference;
-  return navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
-}
-
-function applyLanguage() {
-  const language = activeLanguage();
-  document.documentElement.lang = language;
-  document.querySelectorAll("[data-i18n]").forEach((element) => {
-    const key = element.dataset.i18n;
-    if (translations[language][key]) element.textContent = translations[language][key];
-  });
-}
-
-function applyTheme() {
-  document.documentElement.classList.remove("mlh-theme-light", "mlh-theme-dark");
-  if (state.themePreference === "light") document.documentElement.classList.add("mlh-theme-light");
-  if (state.themePreference === "dark") document.documentElement.classList.add("mlh-theme-dark");
-}
-
-function t(key) {
-  return translations[activeLanguage()][key] || key;
-}
-
-function setConnection(connected) {
-  elements.connection.dataset.tone = connected ? "success" : "danger";
-  const label = elements.connection.querySelector("span:last-child");
-  label.dataset.i18n = connected ? "connected" : "disconnected";
-  label.textContent = connected ? t("connected") : t("disconnected");
-}
-
-function showNotice(message, tone) {
-  elements.notice.hidden = false;
-  elements.notice.dataset.tone = tone;
-  elements.notice.textContent = message;
-  window.clearTimeout(showNotice.timer);
-  showNotice.timer = window.setTimeout(() => {
-    elements.notice.hidden = true;
-  }, 5000);
-}
-
-function statusChip(status) {
-  const tones = {
-    active: "success",
-    running: "success",
-    completed: "success",
-    review: "warning",
-    blocked: "warning",
-    failed: "danger",
-    cancelled: "neutral",
-    archived: "neutral"
-  };
-  return `<span class="mlh-status" data-tone="${tones[status] || "neutral"}">${escapeHtml(status)}</span>`;
-}
-
-function renderList(values, emptyLabel) {
-  if (!Array.isArray(values) || values.length === 0) {
-    return `<p class="mlh-help">${escapeHtml(emptyLabel)}</p>`;
-  }
-  return `<ul class="evidence-list">${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`;
-}
-
-function formatTime(value) {
-  try {
-    return new Intl.DateTimeFormat(activeLanguage(), {
-      dateStyle: "short",
-      timeStyle: "medium"
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-function shortId(value) {
-  if (!value) return "—";
-  return value.length > 18 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
-}
-
-function emptyToNull(value) {
-  const text = String(value || "").trim();
-  return text || null;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+function selectedRun() { return state.runId ? state.ledger?.runs?.[state.runId] || null : null; }
+function selectedTask() { return state.taskId ? selectedRun()?.tasks?.[state.taskId] || null : null; }
+function activeLanguage() { return state.languagePreference !== "system" ? state.languagePreference : navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en"; }
+function applyLanguage() { const language = activeLanguage(); document.documentElement.lang = language; document.querySelectorAll("[data-i18n]").forEach((element) => { const value = translations[language][element.dataset.i18n]; if (value) element.textContent = value; }); }
+function applyTheme() { document.documentElement.classList.remove("mlh-theme-light", "mlh-theme-dark"); if (state.themePreference === "light") document.documentElement.classList.add("mlh-theme-light"); if (state.themePreference === "dark") document.documentElement.classList.add("mlh-theme-dark"); }
+function t(key) { return translations[activeLanguage()][key] || key; }
+function setConnection(connected) { elements.connection.dataset.tone = connected ? "success" : "danger"; const label = elements.connection.querySelector("span:last-child"); label.dataset.i18n = connected ? "connected" : "disconnected"; label.textContent = connected ? t("connected") : t("disconnected"); }
+function showNotice(message, tone) { elements.notice.hidden = false; elements.notice.dataset.tone = tone; elements.notice.textContent = message; window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => { elements.notice.hidden = true; }, 5000); }
+function statusChip(status) { const tones = { active: "success", running: "success", idle: "success", completed: "success", succeeded: "success", review: "warning", prepared: "warning", pending: "warning", provisioning: "warning", blocked: "warning", needs_attention: "warning", handoff: "warning", failed: "danger", cancelled: "neutral", archived: "neutral" }; return `<span class="mlh-status" data-tone="${tones[status] || "neutral"}">${escapeHtml(status)}</span>`; }
+function renderList(values, emptyLabel) { return !Array.isArray(values) || values.length === 0 ? `<p class="mlh-help">${escapeHtml(emptyLabel)}</p>` : `<ul class="evidence-list">${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`; }
+function formatTime(value) { try { return new Intl.DateTimeFormat(activeLanguage(), { dateStyle: "short", timeStyle: "medium" }).format(new Date(value)); } catch { return value; } }
+function shortId(value) { if (!value) return "—"; const text = String(value); return text.length > 18 ? `${text.slice(0, 8)}…${text.slice(-6)}` : text; }
+function emptyToNull(value) { const text = String(value || "").trim(); return text || null; }
+function lines(value) { return String(value || "").split("\n").map((entry) => entry.trim()).filter(Boolean); }
+function escapeHtml(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }

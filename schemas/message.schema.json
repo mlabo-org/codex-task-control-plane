@@ -1,113 +1,53 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.codex/session-control-plane/message.schema.json",
-  "title": "Control Plane Message",
+  "$id": "https://github.com/mlabo-org/codex-session-control-plane/schemas/message.schema.json",
+  "title": "Codex Thread Orchestration Message",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "id",
     "runId",
-    "taskId",
-    "messageId",
-    "sender",
-    "recipient",
     "type",
     "createdAt",
-    "payload"
+    "sender",
+    "recipient",
+    "payload",
+    "metadata",
+    "provenance"
   ],
   "properties": {
-    "schemaVersion": {
-      "const": "control-plane-message/v1"
-    },
-    "runId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "taskId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "messageId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "replyTo": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "sender": {
-      "$ref": "#/$defs/endpoint"
-    },
-    "recipient": {
-      "$ref": "#/$defs/endpoint"
-    },
+    "schemaVersion": { "const": "codex-thread-message/v2" },
+    "id": { "type": "string", "pattern": "^msg_" },
+    "runId": { "type": "string", "pattern": "^run_" },
     "type": {
-      "enum": [
-        "ASSIGN",
-        "ACK",
-        "STATUS",
-        "QUESTION",
-        "PROPOSAL",
-        "RESULT",
-        "REVIEW",
-        "DECISION",
-        "BLOCKED",
-        "CANCEL"
-      ]
-    },
-    "createdAt": {
       "type": "string",
-      "format": "date-time"
+      "enum": ["ASSIGN", "QUESTION", "PROPOSAL", "STATUS", "REVIEW", "RESULT", "DECISION", "CANCEL", "FORK"]
     },
-    "revision": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "maxHops": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 32
-    },
-    "payload": {},
-    "artifacts": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "verification": {
-      "type": "array",
-      "items": {
-        "type": "string"
+    "createdAt": { "type": "string", "format": "date-time" },
+    "sender": { "$ref": "#/$defs/address" },
+    "recipient": { "$ref": "#/$defs/address" },
+    "payload": { "type": "string" },
+    "metadata": { "type": "object" },
+    "provenance": {
+      "type": "object",
+      "required": ["artifacts", "verification"],
+      "properties": {
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "verification": { "type": "array", "items": { "type": "string" } }
       }
     }
   },
   "$defs": {
-    "endpoint": {
+    "address": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "role"
-      ],
+      "required": ["role", "taskId", "threadId", "hostId"],
       "properties": {
-        "role": {
-          "type": "string",
-          "minLength": 1
-        },
-        "threadId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "hostId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
+        "role": { "type": "string" },
+        "taskId": { "type": ["string", "null"] },
+        "threadId": { "type": ["string", "null"] },
+        "hostId": { "type": ["string", "null"] }
       }
     }
   }

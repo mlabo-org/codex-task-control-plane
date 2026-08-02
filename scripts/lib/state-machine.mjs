@@ -1,6 +1,5 @@
 export const RUN_TRANSITIONS = Object.freeze({
-  draft: new Set(["active", "cancelled"]),
-  active: new Set(["review", "failed", "cancelled"]),
+  active: new Set(["review", "completed", "failed", "cancelled"]),
   review: new Set(["active", "completed", "failed", "cancelled"]),
   completed: new Set(),
   failed: new Set(["active", "cancelled"]),
@@ -8,26 +7,37 @@ export const RUN_TRANSITIONS = Object.freeze({
 });
 
 export const TASK_TRANSITIONS = Object.freeze({
-  created: new Set(["dispatched", "cancelled"]),
-  dispatched: new Set(["accepted", "running", "failed", "cancelled"]),
-  accepted: new Set(["running", "blocked", "failed", "cancelled"]),
-  running: new Set(["blocked", "review", "failed", "cancelled"]),
-  blocked: new Set(["running", "dispatched", "failed", "cancelled"]),
-  review: new Set(["completed", "dispatched", "failed", "cancelled"]),
+  created: new Set(["prepared", "review", "cancelled"]),
+  prepared: new Set(["provisioning", "running", "idle", "review", "failed", "cancelled"]),
+  provisioning: new Set(["running", "idle", "review", "needs_attention", "failed", "cancel_requested"]),
+  running: new Set(["idle", "review", "blocked", "needs_attention", "failed", "cancel_requested"]),
+  idle: new Set(["running", "review", "blocked", "needs_attention", "failed", "cancel_requested"]),
+  blocked: new Set(["running", "idle", "review", "needs_attention", "failed", "cancel_requested"]),
+  needs_attention: new Set(["running", "idle", "review", "blocked", "failed", "cancel_requested"]),
+  review: new Set(["completed", "idle", "running", "failed", "cancel_requested"]),
+  failed: new Set(["prepared", "cancelled"]),
+  cancel_requested: new Set(["running", "failed", "cancelled"]),
   completed: new Set(),
-  failed: new Set(["dispatched", "cancelled"]),
   cancelled: new Set()
 });
 
-export const SESSION_TRANSITIONS = Object.freeze({
-  planned: new Set(["starting", "archived"]),
-  starting: new Set(["idle", "active", "failed", "archived"]),
-  idle: new Set(["active", "completed", "failed", "archived"]),
-  active: new Set(["idle", "blocked", "completed", "failed", "archived"]),
-  blocked: new Set(["active", "failed", "archived"]),
-  completed: new Set(["archived"]),
-  failed: new Set(["starting", "archived"]),
-  archived: new Set()
+export const THREAD_TRANSITIONS = Object.freeze({
+  provisioning: new Set(["active", "idle", "needs_attention", "failed", "archived"]),
+  active: new Set(["idle", "completed", "blocked", "needs_attention", "handoff", "failed", "archived"]),
+  idle: new Set(["active", "completed", "blocked", "needs_attention", "handoff", "failed", "archived"]),
+  blocked: new Set(["active", "idle", "needs_attention", "handoff", "failed", "archived"]),
+  needs_attention: new Set(["active", "idle", "blocked", "handoff", "failed", "archived"]),
+  handoff: new Set(["provisioning", "active", "idle", "needs_attention", "failed", "archived"]),
+  completed: new Set(["active", "handoff", "archived"]),
+  failed: new Set(["active", "handoff", "archived"]),
+  archived: new Set(["active", "idle", "blocked", "needs_attention", "completed", "failed"])
+});
+
+export const OPERATION_TRANSITIONS = Object.freeze({
+  prepared: new Set(["pending", "succeeded", "failed"]),
+  pending: new Set(["succeeded", "failed"]),
+  succeeded: new Set(),
+  failed: new Set()
 });
 
 export class TransitionError extends Error {
@@ -45,7 +55,8 @@ export function assertTransition(kind, from, to) {
   const table = {
     run: RUN_TRANSITIONS,
     task: TASK_TRANSITIONS,
-    session: SESSION_TRANSITIONS
+    thread: THREAD_TRANSITIONS,
+    operation: OPERATION_TRANSITIONS
   }[kind];
   if (!table || !table[from] || !table[from].has(to)) {
     throw new TransitionError(kind, from, to);
@@ -53,6 +64,10 @@ export function assertTransition(kind, from, to) {
 }
 
 export function transition(entity, kind, to, now = new Date().toISOString()) {
+  if (entity.status === to) {
+    entity.updatedAt = now;
+    return entity;
+  }
   assertTransition(kind, entity.status, to);
   entity.status = to;
   entity.updatedAt = now;

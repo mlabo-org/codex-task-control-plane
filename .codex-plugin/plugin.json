@@ -1,23 +1,23 @@
 {
   "name": "codex-session-control-plane",
-  "version": "0.1.0",
-  "description": "Upper-control orchestration for independent Codex parent sessions through App Server thread/start, persistent ledgers, and controller-owned review.",
+  "version": "0.2.0",
+  "description": "Orchestrate user-visible Codex tasks with native thread tools, durable state, controller decisions, and optional Coding Agents workers.",
   "author": {
     "name": "Makoto Suzuki"
   },
   "keywords": [
+    "スレッドオーケストレーション",
     "上位管制",
-    "session-control",
-    "independent-sessions",
-    "create independent Codex sessions",
-    "thread/start",
+    "thread-orchestration",
+    "visible-codex-tasks",
+    "coding-agents",
     "ledger"
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Codex Session Control Plane",
-    "shortDescription": "Coordinate independent Codex parent sessions",
-    "longDescription": "Create, address, and coordinate independent Codex parent sessions from an upper control plane. Assign each thread a project, model, and reasoning effort; relay cross-session messages; retain a durable ledger; and keep final acceptance with the controller.",
+    "displayName": "Codex Thread Orchestration",
+    "shortDescription": "Coordinate visible Codex tasks with durable control state",
+    "longDescription": "Create, observe, continue, fork, hand off, organize, and review user-visible Codex tasks through the native Codex task-tool family. Keep project resolution, thread addresses, operation intents, results, controller decisions, and optional Coding Agents worker boundaries in an atomic local ledger.",
     "developerName": "Makoto Suzuki",
     "category": "Productivity",
     "capabilities": [
@@ -25,9 +25,9 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Create a dry-run upper-control plan for independent Codex sessions.",
-      "Use 上位管制 to coordinate parent sessions for this project.",
-      "Inspect the control-plane ledger and pending reviews."
+      "Create a dry-run thread-orchestration plan for this project.",
+      "Use 上位管制 to coordinate visible Codex tasks and retain their task IDs.",
+      "Run one Coding Agents workflow inside each isolated visible worker task."
     ],
     "brandColor": "#2563EB"
   },

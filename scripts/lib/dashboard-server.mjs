@@ -56,7 +56,11 @@ export async function startDashboardServer({
 async function handleRequest({ request, response, controlPlane, assetRoot, token }) {
   const url = new URL(request.url, "http://localhost");
   if (request.method === "GET" && url.pathname === "/api/health") {
-    sendJson(response, 200, { ok: true, service: "codex-session-control-plane" });
+    sendJson(response, 200, {
+      ok: true,
+      service: "codex-session-control-plane",
+      role: "ledger-and-intent-dashboard"
+    });
     return;
   }
   if (request.method === "GET" && url.pathname === "/api/snapshot") {
@@ -118,22 +122,20 @@ async function dispatchAction(controlPlane, body) {
       return controlPlane.createRun(body.input || {});
     case "addTask":
       return controlPlane.addTask(body.input || {});
-    case "previewDispatch":
-      return controlPlane.previewDispatch(body.input || {});
-    case "dispatch":
-      return controlPlane.dispatchTask(body.input || {});
-    case "poll":
-      return controlPlane.pollTask(body.input || {});
-    case "send":
-      return controlPlane.sendMessage(body.input || {});
-    case "relay":
-      return controlPlane.relayMessage(body.input || {});
+    case "prepareDispatch":
+      return controlPlane.prepareDispatch(body.input || {});
+    case "resolveProject":
+      return controlPlane.resolveProject(body.input || {});
+    case "prepareOperation":
+      return controlPlane.prepareOperation(body.input || {});
+    case "completeOperation":
+      return controlPlane.completeOperation(body.input || {});
     case "decide":
       return controlPlane.decideTask(body.input || {});
-    case "stop":
-      return controlPlane.stopTask(body.input || {});
-    case "archive":
-      return controlPlane.archiveSession(body.input || {});
+    case "requestCancel":
+      return controlPlane.requestCancel(body.input || {});
+    case "simulateTask":
+      return controlPlane.simulateTask(body.input || {});
     default: {
       const error = new Error(`Unsupported dashboard action: ${body?.action}`);
       error.code = "UNKNOWN_ACTION";

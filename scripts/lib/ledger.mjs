@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
-const SCHEMA_VERSION = "control-plane-ledger/v1";
+export const LEDGER_SCHEMA_VERSION = "codex-thread-orchestration-ledger/v2";
 
 export function defaultLedgerPath() {
   const root =
@@ -13,7 +13,7 @@ export function defaultLedgerPath() {
 
 export function emptyLedger() {
   return {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: LEDGER_SCHEMA_VERSION,
     revision: 0,
     updatedAt: null,
     runs: {}
@@ -31,14 +31,16 @@ export class Ledger {
     try {
       const bytes = await fs.readFile(this.filePath, "utf8");
       const parsed = JSON.parse(bytes);
-      if (parsed.schemaVersion !== SCHEMA_VERSION || typeof parsed.runs !== "object") {
-        throw new Error(`Unsupported ledger schema at ${this.filePath}`);
+      if (parsed.schemaVersion !== LEDGER_SCHEMA_VERSION || !isRecord(parsed.runs)) {
+        const error = new Error(
+          `Unsupported ledger schema at ${this.filePath}; start with a new v2 ledger path`
+        );
+        error.code = "UNSUPPORTED_LEDGER_SCHEMA";
+        throw error;
       }
       return parsed;
     } catch (error) {
-      if (error?.code === "ENOENT") {
-        return emptyLedger();
-      }
+      if (error?.code === "ENOENT") return emptyLedger();
       throw error;
     }
   }
@@ -87,4 +89,8 @@ export class Ledger {
       await directoryHandle.close();
     }
   }
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

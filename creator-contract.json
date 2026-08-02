@@ -4,45 +4,52 @@
   "capability_id": "codex-session-control-plane",
   "official_creator": "plugin-creator",
   "routing": {
-    "task_class": "Independent Codex parent-session creation, addressing, coordination, relay, review, and lifecycle control",
+    "task_class": "Orchestration and lifecycle management of multiple user-visible Codex tasks",
     "natural_language_triggers": [
+      "thread orchestration",
+      "スレッドオーケストレーション",
       "上位管制",
-      "cross-session coordination",
-      "create independent Codex sessions",
-      "親セッション同士を連携"
+      "create visible Codex tasks",
+      "manage Coding Agents in separate tasks",
+      "fork or hand off a Codex task"
     ],
-    "primary_route": "Use $control-codex-sessions with the codex_session_control_plane MCP tools; plan in dry-run, preview dispatch, then create or steer App Server threads only from explicit live authorization.",
+    "primary_route": "Use $control-codex-sessions with the codex_session_control_plane MCP ledger and the native codex_app task-tool family. Prepare each call in the ledger, execute it in the active controller, then record its normalized outcome.",
     "fallback_conditions": [
-      "Use read-only Codex App Server inspection when the MCP server is not exposed but the source and generated protocol schema are available.",
-      "Return a dry-run topology and exact blocked capability when App Server authentication or model discovery is unavailable."
+      "If a core native task tool is absent, report its exact name and offer ordinary official subagents or a configured custom agent only when in-task delegation still satisfies the goal.",
+      "If live creation is not currently authorized, return a dry-run topology and do not invoke a native mutation."
     ],
     "non_use_conditions": [
-      "Do not use for ordinary official subagent delegation within one Codex thread.",
-      "Do not create, steer, interrupt, or archive live sessions without explicit current-task authorization.",
-      "Do not use plugin cache, App Server logs, or the runtime ledger as editable source."
+      "Do not use for ordinary official subagent delegation inside one Codex task.",
+      "Do not create a new visible task unless the current user explicitly requested it.",
+      "Do not treat the MCP server, dashboard, plugin cache, runtime ledger, or task history as the native executor or editable source."
     ],
     "discovery": {
       "task_terms": [
-        "session control",
+        "thread orchestration",
+        "task control plane",
         "上位管制",
-        "parent sessions",
-        "cross-session coordination"
+        "visible Codex tasks",
+        "cross-thread coordination"
       ],
       "trigger_phrases": [
-        "create independent Codex sessions",
-        "親セッション同士を連携",
-        "assign model and reasoning effort"
+        "create multiple Codex tasks",
+        "Codexの画面に別スレッドを作る",
+        "run Coding Agents in each task",
+        "fork this task",
+        "hand off this task"
       ],
       "artifact_or_tool_terms": [
-        "thread/start",
-        "control_plane_dispatch",
-        "control_plane_relay",
+        "codex_app__create_thread",
+        "codex_app__wait_threads",
+        "codex_app__handoff_thread",
+        "control_plane_prepare_operation",
         "ledger"
       ],
       "aliases": [
-        "session control plane",
+        "Codex Thread Orchestration",
+        "Codex Session Control Plane",
         "Codex upper control",
-        "親セッション管制"
+        "スレッド管制"
       ]
     },
     "openai_yaml": {
@@ -52,17 +59,17 @@
           "path": "skills/control-codex-sessions/agents/openai.yaml",
           "document": {
             "interface": {
-              "display_name": "Codex Session Control Plane",
-              "short_description": "Coordinate independent Codex parent sessions safely",
+              "display_name": "Codex Thread Orchestration",
+              "short_description": "Coordinate visible Codex tasks with durable state",
               "brand_color": "#2563EB",
-              "default_prompt": "Use $control-codex-sessions to create a dry-run upper-control plan for independent Codex sessions."
+              "default_prompt": "Use $control-codex-sessions to create a dry-run thread-orchestration plan for visible Codex tasks."
             },
             "dependencies": {
               "tools": [
                 {
                   "type": "mcp",
                   "value": "codex_session_control_plane",
-                  "description": "Persistent App Server session control, relay, review, and dashboard tools",
+                  "description": "Durable task intents, bindings, observations, decisions, and bilingual dashboard",
                   "transport": "stdio"
                 }
               ]
@@ -78,47 +85,53 @@
   "inputs": [
     {
       "name": "control objective",
-      "description": "Concrete whole-run outcome owned by the controller."
+      "description": "Concrete whole-run outcome owned by one controller."
     },
     {
-      "name": "bounded task assignments",
-      "description": "Per-task title, prompt, role, absolute project cwd, model, reasoning effort, sandbox, and acceptance boundary."
+      "name": "worker task contracts",
+      "description": "Per-task title, role, complete prompt, absolute project path, target environment, workflow, acceptance criteria, and optional user-authorized profile."
     },
     {
-      "name": "controller address",
-      "description": "Optional controller thread ID and host ID retained for reciprocal addressing."
+      "name": "native capability inventory",
+      "description": "Exact codex_app task tools available to the active Codex controller."
     },
     {
-      "name": "live authorization",
-      "description": "Explicit current-task authorization required for real session creation, turns, interruption, relay, and archival."
+      "name": "current live authority",
+      "description": "Explicit request authorizing creation or mutation of user-visible Codex tasks."
     }
   ],
   "outputs": [
     {
-      "name": "control ledger",
-      "description": "Atomic JSON state containing runs, tasks, sessions, correlated envelopes, events, results, artifacts, and verification."
+      "name": "atomic control ledger",
+      "description": "Runs, task contracts, thread/client addresses, prepared native calls, normalized results, messages, decisions, and audit events."
     },
     {
-      "name": "session addresses",
-      "description": "App Server thread IDs and turn IDs bound to task roles and execution profiles."
+      "name": "native operation intents",
+      "description": "Exact host tool name and arguments returned for execution by the active Codex controller."
     },
     {
-      "name": "controller decisions",
-      "description": "Auditable accept, reject, fail, stop, relay, and archive outcomes."
+      "name": "controller acceptance",
+      "description": "Auditable accept, continue, fail, and cancellation-intent decisions without worker self-acceptance."
     },
     {
       "name": "loopback dashboard",
-      "description": "Local operational view with Japanese/English/System language and Light/Dark/System theme controls."
+      "description": "Bilingual local observer with Japanese/English/System language and Light/Dark/System theme controls."
     }
   ],
   "validation_commands": [
     {
       "name": "source-contract-validation",
       "argv": [
-        "/opt/homebrew/opt/node@24/bin/node",
+        "node",
         "scripts/validate.mjs"
       ],
-      "covers": [],
+      "covers": [
+        "public-interface",
+        "native-tool-coverage",
+        "superseded-route-removal",
+        "bilingual-readme",
+        "ui-preferences"
+      ],
       "test_paths": [],
       "cwd": ".",
       "timeout_seconds": 120
@@ -126,20 +139,23 @@
     {
       "name": "runtime-and-ui-tests",
       "argv": [
-        "/opt/homebrew/opt/node@24/bin/node",
+        "node",
         "--test"
       ],
       "covers": [
-        "live-operation-confirmation",
-        "controller-state-authority",
-        "cross-session-addressing",
-        "app-server-profile-binding",
+        "native-intent-preparation",
+        "live-action-confirmation",
+        "queued-thread-binding",
+        "observation-and-controller-state",
+        "complete-native-management-surface",
+        "coding-agents-worker-boundary",
         "atomic-ledger",
         "loopback-dashboard-security",
         "ui-preferences"
       ],
       "test_paths": [
         "tests/control-plane.test.mjs",
+        "tests/native-thread-tools.test.mjs",
         "tests/dashboard.test.mjs",
         "tests/ledger.test.mjs",
         "tests/mcp.test.mjs",
@@ -154,13 +170,13 @@
     "source_of_truth": ".",
     "generated_or_runtime_paths": [
       "~/.codex/session-control-plane/ledger.json",
-      "~/.codex/plugins/cache/codex-session-control-plane",
-      "temporary App Server schema directories"
+      "~/.codex/plugins/cache/local-plugins/codex-session-control-plane",
+      "Codex task/worktree runtime state"
     ],
     "forbidden_source_paths": [
       "~/.codex/skills/.system",
       "~/.codex/plugins/cache",
-      "Codex session JSONL and runtime logs"
+      "Codex task history, databases, and logs"
     ]
   },
   "user_facing_ui": {
@@ -176,27 +192,74 @@
       "System"
     ],
     "state_persistence": true,
-    "display_verification": "Run node --test tests/ui-contract.test.mjs, then inspect the localhost dashboard in the in-app Browser."
+    "display_verification": "Run node --test tests/ui-contract.test.mjs; the dashboard is served only on loopback."
   },
   "production_contract": {
     "reviewed": true,
     "rules": [
       {
-        "id": "live-operation-confirmation",
-        "description": "Real thread creation, follow-up turns, cross-session relay, interruption, and archival require live mode plus an explicit confirmation flag.",
+        "id": "native-runtime-ownership",
+        "description": "Only the native codex_app task tools own real visible task operations; the MCP server prepares and records calls.",
         "enforcement_points": [
+          "scripts/lib/native-thread-tools.mjs",
           "scripts/lib/control-plane.mjs",
-          "scripts/control-plane-mcp.mjs",
-          "scripts/lib/dashboard-server.mjs"
+          "skills/control-codex-sessions/SKILL.md"
         ],
         "tests": [
-          "tests/control-plane.test.mjs",
-          "tests/dashboard.test.mjs"
+          "tests/native-thread-tools.test.mjs",
+          "tests/mcp.test.mjs"
+        ]
+      },
+      {
+        "id": "complete-native-tool-coverage",
+        "description": "Project discovery, create, list, wait, read, send, fork, handoff/status, title, pin, archive, and navigation are represented in the public and executable contracts.",
+        "enforcement_points": [
+          "scripts/lib/native-thread-tools.mjs",
+          "scripts/control-plane-mcp.mjs",
+          "skills/control-codex-sessions/SKILL.md",
+          "README.md"
+        ],
+        "tests": [
+          "tests/native-thread-tools.test.mjs",
+          "tests/mcp.test.mjs"
+        ]
+      },
+      {
+        "id": "explicit-live-authority",
+        "description": "A dry-run is the default; live native mutations require current explicit user authority and per-call control-plane confirmation.",
+        "enforcement_points": [
+          "scripts/lib/control-plane.mjs",
+          "scripts/control-plane-mcp.mjs"
+        ],
+        "tests": [
+          "tests/control-plane.test.mjs"
+        ]
+      },
+      {
+        "id": "project-and-profile-binding",
+        "description": "Launch selects one exact local project path, defaults Git to worktree and non-Git to local, and accepts model/thinking overrides only with user_request authority.",
+        "enforcement_points": [
+          "scripts/lib/native-thread-tools.mjs",
+          "scripts/lib/control-plane.mjs"
+        ],
+        "tests": [
+          "tests/native-thread-tools.test.mjs",
+          "tests/control-plane.test.mjs"
+        ]
+      },
+      {
+        "id": "queued-binding-integrity",
+        "description": "A clientThreadId is retained until list_threads supplies one exact client-ID match and, when assigned, the exact generated title with a real thread address.",
+        "enforcement_points": [
+          "scripts/lib/control-plane.mjs"
+        ],
+        "tests": [
+          "tests/control-plane.test.mjs"
         ]
       },
       {
         "id": "controller-state-authority",
-        "description": "Only valid state transitions and a controller review decision can complete a task or the global run.",
+        "description": "Normalized native observations move worker state to review; only a controller decision completes a task and run.",
         "enforcement_points": [
           "scripts/lib/state-machine.mjs",
           "scripts/lib/control-plane.mjs"
@@ -207,23 +270,22 @@
         ]
       },
       {
-        "id": "cross-session-addressing",
-        "description": "Inter-session messages retain run, task, sender thread, recipient thread, type, hop, artifact, and verification provenance.",
+        "id": "coding-agents-worker-boundary",
+        "description": "A Coding Agents workflow stays inside its visible worker project/worktree and does not become a sibling-task controller.",
         "enforcement_points": [
-          "scripts/lib/control-plane.mjs",
-          "schemas/message.schema.json"
+          "scripts/lib/native-thread-tools.mjs",
+          "skills/control-codex-sessions/SKILL.md"
         ],
         "tests": [
-          "tests/control-plane.test.mjs",
-          "tests/mcp.test.mjs"
+          "tests/native-thread-tools.test.mjs"
         ]
       },
       {
-        "id": "app-server-profile-binding",
-        "description": "Every controlled session and turn binds the declared project cwd, model, reasoning effort, approval policy, and sandbox through current App Server methods.",
+        "id": "truthful-cancellation",
+        "description": "Without a native stop tool, the ledger records cancellation intent and reports the required user stop rather than claiming interruption.",
         "enforcement_points": [
-          "scripts/lib/app-server-client.mjs",
-          "scripts/lib/control-plane.mjs"
+          "scripts/lib/control-plane.mjs",
+          "skills/control-codex-sessions/SKILL.md"
         ],
         "tests": [
           "tests/control-plane.test.mjs"
@@ -231,7 +293,7 @@
       },
       {
         "id": "atomic-ledger",
-        "description": "Control state writes serialize updates and persist by temporary file, fsync, and atomic rename with private file permissions.",
+        "description": "Ledger writes are serialized and persisted through a private temporary file, sync, and atomic rename.",
         "enforcement_points": [
           "scripts/lib/ledger.mjs"
         ],
@@ -241,7 +303,7 @@
       },
       {
         "id": "loopback-dashboard-security",
-        "description": "The dashboard binds only to loopback, denies untrusted action requests, applies a restrictive content security policy, and limits request bodies.",
+        "description": "The dashboard binds only to loopback, protects mutations with a process token, limits request bodies, and applies a restrictive content security policy.",
         "enforcement_points": [
           "scripts/lib/dashboard-server.mjs"
         ],
@@ -251,7 +313,7 @@
       },
       {
         "id": "ui-preferences",
-        "description": "The operational dashboard provides persistent Japanese, English, and System language selection plus Light, Dark, and System theme selection.",
+        "description": "The dashboard provides persistent Japanese, English, and System language selection plus Light, Dark, and System theme selection.",
         "enforcement_points": [
           "assets/dashboard/index.html",
           "assets/dashboard/app.js",
