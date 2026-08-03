@@ -1,7 +1,7 @@
 {
   "schema_version": "creator-contract/v2",
   "kind": "plugin",
-  "capability_id": "codex-session-control-plane",
+  "capability_id": "codex-thread-orchestration",
   "official_creator": "plugin-creator",
   "routing": {
     "task_class": "Orchestration and lifecycle management of multiple user-visible Codex tasks",
@@ -47,7 +47,6 @@
       ],
       "aliases": [
         "Codex Thread Orchestration",
-        "Codex Session Control Plane",
         "Codex upper control",
         "スレッド管制"
       ]
@@ -170,7 +169,7 @@
     "source_of_truth": ".",
     "generated_or_runtime_paths": [
       "~/.codex/session-control-plane/ledger.json",
-      "~/.codex/plugins/cache/local-plugins/codex-session-control-plane",
+      "~/.codex/plugins/cache/local-plugins/codex-thread-orchestration",
       "Codex task/worktree runtime state"
     ],
     "forbidden_source_paths": [

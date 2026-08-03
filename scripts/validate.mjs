@@ -66,9 +66,9 @@ const nativeSource = await read("scripts/lib/native-thread-tools.mjs");
 const mcpSource = await read("scripts/control-plane-mcp.mjs");
 const uiSource = `${await read("assets/dashboard/index.html")}\n${await read("assets/dashboard/app.js")}\n${await read("assets/dashboard/macos-local-html.css")}`;
 
-assert.equal(plugin.name, "codex-session-control-plane");
-assert.equal(plugin.version, "0.2.0");
-assert.equal(plugin.version, packageJson.version);
+assert.equal(plugin.name, "codex-thread-orchestration");
+assert.match(plugin.version, /^0\.2\.0\+codex\.[0-9A-Za-z.-]+$/);
+assert.equal(packageJson.version, "0.2.0");
 assert.equal(plugin.skills, "./skills/");
 assert.equal(plugin.mcpServers, "./.mcp.json");
 assert.equal(packageJson.license, "MIT");

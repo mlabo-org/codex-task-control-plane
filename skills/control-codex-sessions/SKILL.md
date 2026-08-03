@@ -1,9 +1,13 @@
 ---
 name: control-codex-sessions
-description: Orchestrate user-visible Codex tasks with native thread tools and a durable control ledger. Use for thread orchestration, スレッドオーケストレーション, 上位管制, cross-thread delegation, visible task fleets, Coding Agents per task, task ID addressing, handoff, fork, pin, archive, or navigation. Do not use for ordinary subagents inside one task.
+description: Orchestrate user-visible Codex tasks with native thread tools and a durable ledger. Trigger for thread orchestration, スレッドオーケストレーション, 上位管制, cross-thread delegation, Coding Agents per task, task handoff, fork, pin, archive, or navigation. Exclude ordinary subagents inside one task.
 ---
 
 # Control Codex Sessions
+
+This `SKILL.md` is the local execution contract for this skill when the skill is selected.
+Codex must treat this file's trigger assumptions, workflow, tool boundaries, file boundaries, and output shape as binding instructions within this skill's scope.
+This file does not override system instructions, developer instructions, explicit user requests, applicable `AGENTS.md` files, or more specific local execution contracts.
 
 Use this skill to coordinate independent Codex tasks that the user can see and open in the app. Keep one controller responsible for decomposition, authority, integration, and final acceptance.
 

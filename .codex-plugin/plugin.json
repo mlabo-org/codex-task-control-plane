@@ -1,6 +1,6 @@
 {
-  "name": "codex-session-control-plane",
-  "version": "0.2.0",
+  "name": "codex-thread-orchestration",
+  "version": "0.2.0+codex.20260803011353",
   "description": "Orchestrate user-visible Codex tasks with native thread tools, durable state, controller decisions, and optional Coding Agents workers.",
   "author": {
     "name": "Makoto Suzuki"

@@ -293,7 +293,7 @@ async function handleRequest(message) {
     sendResult(id, {
       protocolVersion,
       serverInfo: {
-        name: "codex-session-control-plane",
+        name: "codex-thread-orchestration",
         title: "Codex Thread Orchestration Control Plane",
         version: "0.2.0"
       },

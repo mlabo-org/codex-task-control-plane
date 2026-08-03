@@ -26,7 +26,7 @@ test("MCP exposes the complete ledger/intent lifecycle and creates a dry-run", a
     capabilities: {},
     clientInfo: { name: "test", version: "1" }
   });
-  assert.equal(initialized.serverInfo.name, "codex-session-control-plane");
+  assert.equal(initialized.serverInfo.name, "codex-thread-orchestration");
   assert.equal(initialized.serverInfo.version, "0.2.0");
 
   const listed = await requests.call("tools/list", {});

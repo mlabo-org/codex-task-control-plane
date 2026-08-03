@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/mlabo-org/codex-session-control-plane/schemas/message.schema.json",
+  "$id": "https://github.com/mlabo-org/codex-thread-orchestration/schemas/message.schema.json",
   "title": "Codex Thread Orchestration Message",
   "type": "object",
   "additionalProperties": false,

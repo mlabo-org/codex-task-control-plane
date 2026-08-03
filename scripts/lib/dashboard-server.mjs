@@ -58,7 +58,7 @@ async function handleRequest({ request, response, controlPlane, assetRoot, token
   if (request.method === "GET" && url.pathname === "/api/health") {
     sendJson(response, 200, {
       ok: true,
-      service: "codex-session-control-plane",
+      service: "codex-thread-orchestration",
       role: "ledger-and-intent-dashboard"
     });
     return;

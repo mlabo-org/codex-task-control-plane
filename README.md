@@ -88,8 +88,8 @@ Top-level visible tasks and internal subagents are separate layers. The controll
 The repository has no third-party runtime packages.
 
 ```sh
-git clone https://github.com/mlabo-org/codex-session-control-plane.git
-cd codex-session-control-plane
+git clone https://github.com/mlabo-org/codex-thread-orchestration.git
+cd codex-thread-orchestration
 npm run check
 npm run smoke
 ```
@@ -208,8 +208,8 @@ Codex のバージョンによって公開ツールは変わり得ます。ラ�
 外部 runtime package への依存はありません。
 
 ```sh
-git clone https://github.com/mlabo-org/codex-session-control-plane.git
-cd codex-session-control-plane
+git clone https://github.com/mlabo-org/codex-thread-orchestration.git
+cd codex-thread-orchestration
 npm run check
 npm run smoke
 ```
