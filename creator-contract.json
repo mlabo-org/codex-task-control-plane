@@ -129,6 +129,7 @@
         "native-tool-coverage",
         "superseded-route-removal",
         "bilingual-readme",
+        "agent-first-install-contract",
         "ui-preferences"
       ],
       "test_paths": [],
@@ -149,6 +150,7 @@
         "complete-native-management-surface",
         "coding-agents-worker-boundary",
         "atomic-ledger",
+        "reader-environment-installation",
         "loopback-dashboard-security",
         "ui-preferences"
       ],
@@ -156,6 +158,7 @@
         "tests/control-plane.test.mjs",
         "tests/native-thread-tools.test.mjs",
         "tests/dashboard.test.mjs",
+        "tests/installer.test.mjs",
         "tests/ledger.test.mjs",
         "tests/mcp.test.mjs",
         "tests/state-machine.test.mjs",
@@ -196,6 +199,20 @@
   "production_contract": {
     "reviewed": true,
     "rules": [
+      {
+        "id": "reader-environment-installation",
+        "description": "A first-time Codex reader uses an explicit install-only AGENTS route, a canonical personal-plugin source, a preserving marketplace update, and the official Codex plugin CLI without editing runtime cache.",
+        "enforcement_points": [
+          "AGENTS.md",
+          "docs/INSTALL_FOR_CODEX.md",
+          "README.md",
+          "scripts/install-plugin.mjs",
+          "scripts/lib/plugin-installer.mjs"
+        ],
+        "tests": [
+          "tests/installer.test.mjs"
+        ]
+      },
       {
         "id": "native-runtime-ownership",
         "description": "Only the native codex_app task tools own real visible task operations; the MCP server prepares and records calls.",

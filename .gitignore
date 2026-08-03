@@ -1,4 +1,5 @@
 .DS_Store
+.coding-agents/
 node_modules/
 coverage/
 .runtime/

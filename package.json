@@ -28,6 +28,8 @@
     "test": "node --test",
     "validate": "node scripts/validate.mjs",
     "check": "npm run validate && npm test",
+    "plugin:install:check": "node scripts/install-plugin.mjs --check",
+    "plugin:install": "node scripts/install-plugin.mjs --install",
     "smoke": "node scripts/control-plane-cli.mjs smoke",
     "dashboard": "node scripts/control-plane-cli.mjs serve"
   }

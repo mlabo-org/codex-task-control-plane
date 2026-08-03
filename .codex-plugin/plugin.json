@@ -5,6 +5,9 @@
   "author": {
     "name": "Makoto Suzuki"
   },
+  "homepage": "https://github.com/mlabo-org/codex-thread-orchestration#readme",
+  "repository": "https://github.com/mlabo-org/codex-thread-orchestration",
+  "license": "MIT",
   "keywords": [
     "スレッドオーケストレーション",
     "上位管制",

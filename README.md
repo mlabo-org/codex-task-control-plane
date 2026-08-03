@@ -6,6 +6,18 @@ Codex Thread Orchestration is a Codex plugin for coordinating multiple **user-vi
 
 It can also start each visible worker with a `coding-agents` contract, so every isolated task or worktree can run its own bounded Coding Agents workflow without confusing those internal subagents with sibling top-level tasks.
 
+## Install with Codex / Codexでインストール
+
+This repository is agent-first installable. Give its URL to Codex and paste this request:
+
+> Install Codex Thread Orchestration from https://github.com/mlabo-org/codex-thread-orchestration into my local Codex environment. Read the repository-root AGENTS.md first and follow its installation route. Resolve my own home directory, preserve existing marketplace entries, never edit the installed cache directly, and report the installed version plus the required restart and fresh-task verification.
+
+このリポジトリは、取得した側の Codex が初見で導入できる構成です。Codex に URL と次の依頼を渡してください。
+
+> https://github.com/mlabo-org/codex-thread-orchestration から Codex Thread Orchestration を私のローカル Codex 環境へインストールして。最初にリポジトリ直下の AGENTS.md を読み、そこに定義された導入経路に従って。私自身のホームディレクトリを解決し、既存 marketplace エントリを保全し、インストール済み cache は直接編集せず、導入されたバージョンと再起動・新規 task での確認手順まで報告して。
+
+The root `AGENTS.md` is deliberately narrow: it activates only for an explicit installation request. Installation mechanics and stop conditions live in `docs/INSTALL_FOR_CODEX.md`; ordinary development and plugin use do not trigger them.
+
 ## English
 
 ### What this plugin changes
@@ -88,13 +100,20 @@ Top-level visible tasks and internal subagents are separate layers. The controll
 The repository has no third-party runtime packages.
 
 ```sh
-git clone https://github.com/mlabo-org/codex-thread-orchestration.git
-cd codex-thread-orchestration
+git clone https://github.com/mlabo-org/codex-thread-orchestration.git "${HOME}/plugins/codex-thread-orchestration"
+cd "${HOME}/plugins/codex-thread-orchestration"
 npm run check
-npm run smoke
+npm run plugin:install:check
+npm run plugin:install
 ```
 
-For plugin distribution, point a Codex plugin marketplace entry at this repository root. The plugin manifest is `.codex-plugin/plugin.json`, the MCP declaration is `.mcp.json`, and the skill is under `skills/control-codex-sessions/`. Start a fresh Codex task after installing or refreshing a plugin so its manifest, skill, and MCP surface are reloaded.
+`plugin:install:check` is read-only. `plugin:install` preserves unrelated entries in `~/.agents/plugins/marketplace.json`, refuses a conflicting entry for this plugin, calls the official `codex plugin add` command, and verifies the installed version with `codex plugin list --json`. It never writes the installed cache directly.
+
+The plugin manifest is `.codex-plugin/plugin.json`, the MCP declaration is `.mcp.json`, and the skill is under `skills/control-codex-sessions/`. The complete Codex-facing installation contract is `docs/INSTALL_FOR_CODEX.md`.
+
+Restart Codex after installation and start a fresh task. Use this non-mutating pickup check:
+
+> Use Codex Thread Orchestration for this project. Run only its capability preflight and return a dry-run summary. Do not create or modify a visible task.
 
 Example requests:
 
@@ -208,13 +227,20 @@ Codex のバージョンによって公開ツールは変わり得ます。ラ�
 外部 runtime package への依存はありません。
 
 ```sh
-git clone https://github.com/mlabo-org/codex-thread-orchestration.git
-cd codex-thread-orchestration
+git clone https://github.com/mlabo-org/codex-thread-orchestration.git "${HOME}/plugins/codex-thread-orchestration"
+cd "${HOME}/plugins/codex-thread-orchestration"
 npm run check
-npm run smoke
+npm run plugin:install:check
+npm run plugin:install
 ```
 
-配布時は、Codex plugin marketplace のエントリからこのリポジトリ直下を参照します。manifest は `.codex-plugin/plugin.json`、MCP 定義は `.mcp.json`、skill は `skills/control-codex-sessions/` にあります。インストールまたは refresh 後は、新しい Codex task を開始して manifest、skill、MCP を再読込してください。
+`plugin:install:check` は read-only です。`plugin:install` は `~/.agents/plugins/marketplace.json` 内の無関係なエントリを保全し、このプラグインと競合する参照があれば停止し、公式の `codex plugin add` を呼び、`codex plugin list --json` で導入バージョンを確認します。インストール済み cache を直接書き換えません。
+
+manifest は `.codex-plugin/plugin.json`、MCP 定義は `.mcp.json`、skill は `skills/control-codex-sessions/` にあります。取得先 Codex 向けの完全な導入契約は `docs/INSTALL_FOR_CODEX.md` です。
+
+インストール後は Codex を再起動し、新しい task で次の非変更確認を行ってください。
+
+> このプロジェクトで Codex Thread Orchestration を使って。capability preflight だけを実行し、dry-run の要約を返して。画面に見える task は作成・変更しないで。
 
 依頼例:
 

@@ -8,21 +8,25 @@ import { NATIVE_THREAD_TOOLS } from "./lib/native-thread-tools.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const requiredFiles = [
+  "AGENTS.md",
   ".codex-plugin/plugin.json",
   ".github/workflows/ci.yml",
   ".mcp.json",
   "LICENSE",
   "README.md",
   "creator-contract.json",
+  "docs/INSTALL_FOR_CODEX.md",
   "package.json",
   "skills/control-codex-sessions/SKILL.md",
   "skills/control-codex-sessions/agents/openai.yaml",
   "scripts/control-plane-mcp.mjs",
   "scripts/control-plane-cli.mjs",
+  "scripts/install-plugin.mjs",
   "scripts/lib/control-plane.mjs",
   "scripts/lib/dashboard-server.mjs",
   "scripts/lib/ledger.mjs",
   "scripts/lib/native-thread-tools.mjs",
+  "scripts/lib/plugin-installer.mjs",
   "scripts/lib/state-machine.mjs",
   "schemas/run.schema.json",
   "schemas/message.schema.json",
@@ -34,6 +38,7 @@ const requiredFiles = [
   "tests/native-thread-tools.test.mjs",
   "tests/dashboard.test.mjs",
   "tests/ledger.test.mjs",
+  "tests/installer.test.mjs",
   "tests/mcp.test.mjs",
   "tests/state-machine.test.mjs",
   "tests/ui-contract.test.mjs"
@@ -59,11 +64,15 @@ const plugin = await readJson(".codex-plugin/plugin.json");
 const packageJson = await readJson("package.json");
 const creator = await readJson("creator-contract.json");
 const mcp = await readJson(".mcp.json");
+const agents = await read("AGENTS.md");
+const installContract = await read("docs/INSTALL_FOR_CODEX.md");
 const skill = await read("skills/control-codex-sessions/SKILL.md");
 const openai = await read("skills/control-codex-sessions/agents/openai.yaml");
 const readme = await read("README.md");
 const nativeSource = await read("scripts/lib/native-thread-tools.mjs");
 const mcpSource = await read("scripts/control-plane-mcp.mjs");
+const installerSource = `${await read("scripts/install-plugin.mjs")}\n${await read("scripts/lib/plugin-installer.mjs")}`;
+const gitignore = await read(".gitignore");
 const uiSource = `${await read("assets/dashboard/index.html")}\n${await read("assets/dashboard/app.js")}\n${await read("assets/dashboard/macos-local-html.css")}`;
 
 assert.equal(plugin.name, "codex-thread-orchestration");
@@ -72,6 +81,9 @@ assert.equal(packageJson.version, "0.2.0");
 assert.equal(plugin.skills, "./skills/");
 assert.equal(plugin.mcpServers, "./.mcp.json");
 assert.equal(packageJson.license, "MIT");
+assert.equal(plugin.license, "MIT");
+assert.equal(plugin.repository, "https://github.com/mlabo-org/codex-thread-orchestration");
+assert.equal(plugin.homepage, "https://github.com/mlabo-org/codex-thread-orchestration#readme");
 assert.equal(creator.capability_id, plugin.name);
 assert.equal(creator.official_creator, "plugin-creator");
 assert.equal(mcp.mcpServers?.codex_session_control_plane?.command, "node");
@@ -85,6 +97,24 @@ assert.match(openai, /\$control-codex-sessions/);
 assert.match(readme, /## English/);
 assert.match(readme, /## 日本語/);
 assert.match(readme, /MIT License/);
+assert.match(readme, /## Install with Codex \/ Codexでインストール/);
+assert.match(readme, /^npm run plugin:install:check$/m);
+assert.match(readme, /^npm run plugin:install$/m);
+assert.match(readme, /docs\/INSTALL_FOR_CODEX\.md/);
+assert.match(agents, /only for routing an explicit request to install/);
+assert.match(agents, /Outside the explicit installation trigger, do not run the installer/);
+assert.match(agents, /docs\/INSTALL_FOR_CODEX\.md/);
+assert.match(installContract, /npm run check/);
+assert.match(installContract, /npm run plugin:install:check/);
+assert.match(installContract, /npm run plugin:install/);
+assert.match(installContract, /Do not run `codex plugin marketplace add`/);
+assert.equal(packageJson.scripts["plugin:install:check"], "node scripts/install-plugin.mjs --check");
+assert.equal(packageJson.scripts["plugin:install"], "node scripts/install-plugin.mjs --install");
+assert.match(gitignore, /^\.coding-agents\/$/m);
+assert.match(installerSource, /execFileAsync\("codex", args/);
+assert.match(installerSource, /\[\s*"plugin",\s*"add"/);
+assert.match(installerSource, /PLUGIN_SOURCE_PATH = `\.\/plugins\/\$\{PLUGIN_NAME\}`/);
+assert.doesNotMatch(installerSource, /\.codex[\\/]plugins[\\/]cache/);
 
 for (const tool of NATIVE_THREAD_TOOLS) {
   assert.match(nativeSource, new RegExp(escapeRegex(tool)), `${tool} must be executable-contract owned`);
@@ -126,6 +156,11 @@ const activeSource = (
   await Promise.all(requiredFiles.map((relative) => fs.readFile(path.join(root, relative), "utf8")))
 ).join("\n");
 assert.doesNotMatch(activeSource, /\bTODO\b|\[TODO:/, "Scaffold placeholders must be removed");
+assert.doesNotMatch(
+  activeSource,
+  /\/Users\/[A-Za-z0-9._-]+\//,
+  "Public source must not contain a maintainer-specific absolute home path"
+);
 const supersededTerms = [
   ["app", "server", "client"].join("-"),
   ["app", "server"].join("-"),
