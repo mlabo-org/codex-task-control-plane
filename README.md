@@ -6,6 +6,11 @@ Codex Thread Orchestration is a Codex plugin for coordinating multiple **user-vi
 
 It can also start each visible worker with a `coding-agents` contract, so every isolated task or worktree can run its own bounded Coding Agents workflow without confusing those internal subagents with sibling top-level tasks.
 
+## Article / 解説記事
+
+- [Codexの別タスクを束ねる「上位管制」プラグインを作ってみた](https://gpt4jp.com/2244/) — 日本語で読む設計思想・実装経緯・実タスク検証
+- Japanese build story covering the architecture, native Thread Tools, Subagent differences, and live-task verification.
+
 ## Install with Codex / Codexでインストール
 
 This repository is agent-first installable. Give its URL to Codex and paste this request:
