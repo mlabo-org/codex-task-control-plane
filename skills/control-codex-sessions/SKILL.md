@@ -70,10 +70,10 @@ When creation returns only `clientThreadId`:
 
 1. Prepare `codex_app__list_threads` with `control_plane_prepare_operation`.
 2. Call the returned native tool.
-3. Match one and only one result whose client ID equals the recorded `clientThreadId` and whose title exactly equals the generated ledger `threadTitle`.
-4. Call `control_plane_complete_operation` with a binding containing `taskId`, `clientThreadId`, `matchCount: 1`, the resolved `threadId`, optional `hostId`, and `matchedTitle`.
+3. Pass the returned `schemaVersion: 4` list snapshot to `control_plane_complete_operation` without inventing or normalizing binding fields.
+4. Let the executable control plane apply environment-specific evidence. A worktree launch requires one `threads` entry with the complete bounded `[TO:<run>:<task>]` marker as its leading title token, `projectId` exactly equal to the selected project, and a non-empty absolute runtime `cwd`. A local launch requires that marker plus `cwd` exactly equal to the declared project root. It records the exposed `id`, optional `hostId`, and runtime `cwd` without replacing the task's declared project root.
 
-Do not bind a queued worktree by recency, partial title, guessed ID, or project label.
+`clientThreadId` remains launch provenance while provisioning but is not list-match evidence because current `list_threads` entries do not expose it. The displayed title may truncate after the complete identity marker, so do not invent a full title. No match leaves the task provisioning; multiple exact environment-specific matches fail closed. Do not bind by recency, a vague title fragment, a guessed ID, fabricated `clientThreadId`/full-title fields, or project label.
 
 ## Observe and decide
 
@@ -99,7 +99,7 @@ Except for project discovery and initial creation, prepare every native call wit
 |---|---|
 | `codex_app__list_projects` | Initial dispatch only; pass its exact selected record to `control_plane_resolve_project` |
 | `codex_app__create_thread` | Initial dispatch only; record with `control_plane_record_thread_launch` |
-| `codex_app__list_threads` | Use for inventory and exact queued-title bindings |
+| `codex_app__list_threads` | Pass the raw schemaVersion 4 snapshot; executable source combines the exact leading marker with selected `projectId` plus absolute runtime `cwd` for worktrees, or exact declared `cwd` for local launches |
 | `codex_app__wait_threads` | Pass 1–8 ledger task IDs, optional cursors, and a bounded timeout; record normalized observations |
 | `codex_app__read_thread` | Pass task ID plus optional cursor/limits; request outputs only when required |
 | `codex_app__send_message_to_thread` | Pass task ID and prompt; optional profile override needs current user authority; record message type and optional source task ID |
@@ -111,7 +111,7 @@ Except for project discovery and initial creation, prepare every native call wit
 | `codex_app__set_thread_archived` | Pass task ID and boolean `archived`; preserve ledger history |
 | `codex_app__navigate_to_codex_page` | Pass task ID; record the successful UI navigation intent |
 
-For `fork_thread`, the native fork copies completed history but does not deliver the new child contract. After binding the child task, prepare `send_message_to_thread` to send its declared prompt before expecting new work. If a worktree fork is queued without a controller-assigned title, bind it by exact `clientThreadId` with `matchCount: 1`; do not require an invented title.
+For `fork_thread`, the native fork copies completed history but does not deliver the new child contract. After binding the child task, prepare `send_message_to_thread` to send its declared prompt before expecting new work. If a worktree fork returns only `clientThreadId`, leave it unbound and report `QUEUED_FORK_BINDING_EVIDENCE_UNAVAILABLE`: the fork call cannot assign the controller marker and current `list_threads` does not expose the client ID. Do not fabricate a binding; continue only from a real `threadId` or a future native result that exposes deterministic evidence.
 
 For `handoff_thread`, record the returned runtime operation ID first. Then prepare `get_handoff_status`, call it with the recorded revision, and record the result. A running task may be interrupted by the handoff itself; do not claim a separate stop capability.
 

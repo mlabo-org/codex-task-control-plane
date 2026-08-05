@@ -265,7 +265,7 @@
       },
       {
         "id": "queued-binding-integrity",
-        "description": "A clientThreadId is retained until list_threads supplies one exact client-ID match and, when assigned, the exact generated title with a real thread address.",
+        "description": "A queued create retains clientThreadId as provenance while executable source binds one schemaVersion 4 entry using the complete leading marker plus exact selected projectId and absolute runtime cwd for worktrees, or exact declared cwd for local launches; runtime cwd is recorded separately and fabricated or ambiguous evidence is rejected.",
         "enforcement_points": [
           "scripts/lib/control-plane.mjs"
         ],

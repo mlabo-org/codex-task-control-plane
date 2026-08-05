@@ -124,12 +124,14 @@ const tools = new Map([
     "control_plane_complete_operation",
     {
       description:
-        "Record a normalized native tool result. Wait/read observations drive task state; list bindings resolve queued worktrees; handoff status, metadata, and UI operations remain auditable.",
+        "Record a native tool result. Wait/read observations drive task state; a raw schemaVersion 4 list_threads snapshot resolves queued creation by exact controller marker and environment-specific project evidence; handoff status, metadata, and UI operations remain auditable.",
       inputSchema: objectSchema(
         {
           runId: { type: "string" },
           operationId: { type: "string" },
-          result: openObject("Normalized result for the prepared operation.")
+          result: openObject(
+            "Result for the prepared operation; pass list_threads schemaVersion 4 output without fabricated binding fields."
+          )
         },
         ["runId", "operationId", "result"]
       ),

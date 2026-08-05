@@ -8,6 +8,7 @@ import {
   capabilityReport,
   createTaskRecord,
   buildDispatchPreparation,
+  buildThreadIdentityMarker,
   buildNativeOperationIntent,
   resolveProjectLaunch
 } from "./native-thread-tools.mjs";
@@ -358,10 +359,21 @@ export class ControlPlane {
         next:
           threadId || !clientThreadId
             ? null
+            : operation.tool !== "codex_app__create_thread"
+              ? null
             : {
                 tool: "codex_app__list_threads",
-                purpose: "Resolve the queued task by exact generated title before binding"
+                purpose:
+                  "Resolve the queued task from the schemaVersion 4 thread list by exact controller identity marker and environment-specific project evidence"
+              },
+        bindingBlocker:
+          !threadId && clientThreadId && operation.tool !== "codex_app__create_thread"
+            ? {
+                code: "QUEUED_FORK_BINDING_EVIDENCE_UNAVAILABLE",
+                message:
+                  "The queued fork has no controller-assigned identity marker, and list_threads does not expose clientThreadId"
               }
+            : null
       };
     });
     return response;
@@ -518,8 +530,15 @@ export class ControlPlane {
 
       switch (operation.tool) {
         case "codex_app__list_threads":
-          applyThreadBindings(run, operation, result.bindings || [], at);
-          finishOperation(operation, "succeeded", result, at);
+          {
+            const boundTaskIds = applyThreadListBindings(run, operation, result, at);
+            finishOperation(
+              operation,
+              "succeeded",
+              { ...result, bindingCount: boundTaskIds.length },
+              at
+            );
+          }
           break;
         case "codex_app__wait_threads":
         case "codex_app__read_thread":
@@ -731,42 +750,72 @@ function createOperation({
   };
 }
 
-function applyThreadBindings(run, operation, bindings, at) {
-  if (!Array.isArray(bindings)) {
-    throw new ControlPlaneError("INVALID_BINDINGS", "bindings must be an array");
+function applyThreadListBindings(run, operation, result, at) {
+  rejectFabricatedThreadBindingEvidence(result);
+  if (!isRecord(result) || result.schemaVersion !== 4) {
+    throw new ControlPlaneError(
+      "UNSUPPORTED_THREAD_LIST_SCHEMA",
+      "Queued binding requires the native list_threads schemaVersion 4 result"
+    );
   }
-  for (const binding of bindings) {
-    const task = requireTask(run, binding.taskId);
-    if (!task.clientThreadId || task.threadId) {
+  if (!Array.isArray(result.threads)) {
+    throw new ControlPlaneError(
+      "INVALID_THREAD_LIST",
+      "list_threads schemaVersion 4 result must include a threads array"
+    );
+  }
+
+  const boundTaskIds = [];
+  const bindingKeys = new Set();
+  const provisioningTasks = Object.values(run.tasks).filter(
+    (task) => task.clientThreadId && !task.threadId
+  );
+
+  for (const task of provisioningTasks) {
+    const marker = buildThreadIdentityMarker(run, task);
+    if (!hasExactIdentityMarker(task.threadTitle, marker)) continue;
+
+    const bindingScope = queuedBindingScope(task);
+    if (!bindingScope) continue;
+    const bindingKey = `${marker}\u0000${bindingScope}`;
+    if (bindingKeys.has(bindingKey)) {
       throw new ControlPlaneError(
-        "TASK_NOT_PROVISIONING",
-        `Task ${task.id} is not waiting for a queued task binding`
+        "CONTROLLER_IDENTITY_COLLISION",
+        `More than one queued task has controller identity ${marker} in ${bindingScope}`
       );
     }
-    requireText(binding.threadId, "binding.threadId");
-    if (binding.clientThreadId !== task.clientThreadId) {
+    bindingKeys.add(bindingKey);
+
+    const matches = result.threads.filter(
+      (entry) =>
+        isRecord(entry) &&
+        hasExactIdentityMarker(entry.title, marker) &&
+        hasExactQueuedProjectEvidence(task, entry)
+    );
+    if (matches.length > 1) {
       throw new ControlPlaneError(
-        "CLIENT_THREAD_MATCH_REQUIRED",
-        `Binding for ${task.id} must include its exact clientThreadId`
+        "AMBIGUOUS_THREAD_BINDING",
+        `Queued task ${task.id} matched ${matches.length} native threads by exact controller and project evidence`
       );
     }
-    if (binding.matchCount !== 1) {
+    if (matches.length === 0) continue;
+
+    const nativeThread = matches[0];
+    validateNativeThreadEntry(nativeThread);
+    const threadId = nativeThread.id.trim();
+    const existingThread = run.threads[threadId];
+    if (existingThread && existingThread.taskId !== task.id) {
       throw new ControlPlaneError(
-        "UNIQUE_MATCH_REQUIRED",
-        `Binding for ${task.id} must report exactly one native task match`
+        "THREAD_ADDRESS_CONFLICT",
+        `Native thread ${threadId} is already bound to task ${existingThread.taskId}`
       );
     }
-    if (task.threadTitle && binding.matchedTitle !== task.threadTitle) {
-      throw new ControlPlaneError(
-        "TITLE_MATCH_REQUIRED",
-        `Binding for ${task.id} must include its exact generated title`
-      );
-    }
+
     const oldKey = `client:${task.clientThreadId}`;
     const oldThread = run.threads[oldKey];
     delete run.threads[oldKey];
-    task.threadId = binding.threadId.trim();
-    task.hostId = optionalText(binding.hostId || task.hostId);
+    task.threadId = threadId;
+    task.hostId = optionalText(nativeThread.hostId || task.hostId);
     task.clientThreadId = null;
     const boundStatus = task.sourceTaskId ? "idle" : "running";
     transition(task, "task", boundStatus, at);
@@ -775,6 +824,7 @@ function applyThreadBindings(run, operation, bindings, at) {
       id: task.threadId,
       hostId: task.hostId,
       clientThreadId: null,
+      runtimeCwd: nativeThread.cwd,
       status: task.sourceTaskId ? "idle" : "active",
       updatedAt: at
     };
@@ -783,9 +833,94 @@ function applyThreadBindings(run, operation, bindings, at) {
       event(
         "QUEUED_THREAD_BOUND",
         `Queued task bound to ${task.threadId}`,
-        { taskId: task.id, operationId: operation.id },
+        {
+          taskId: task.id,
+          operationId: operation.id,
+          identityMarker: marker,
+          declaredProjectRoot: task.cwd,
+          runtimeCwd: nativeThread.cwd,
+          projectId: nativeThread.projectId ?? null
+        },
         at
       )
+    );
+    if (!operation.taskIds.includes(task.id)) operation.taskIds.push(task.id);
+    boundTaskIds.push(task.id);
+  }
+  return boundTaskIds;
+}
+
+function rejectFabricatedThreadBindingEvidence(result) {
+  if (!isRecord(result)) return;
+  const forbiddenFields = [
+    "bindings",
+    "clientThreadId",
+    "fullTitle",
+    "matchedTitle",
+    "matchCount",
+    "threadId"
+  ];
+  const fabricatedTopLevel = forbiddenFields.find((field) =>
+    Object.prototype.hasOwnProperty.call(result, field)
+  );
+  if (fabricatedTopLevel) {
+    throw new ControlPlaneError(
+      "FABRICATED_BINDING_EVIDENCE",
+      `list_threads schemaVersion 4 does not expose ${fabricatedTopLevel} as binding evidence`
+    );
+  }
+  if (!Array.isArray(result.threads)) return;
+  for (const entry of result.threads) {
+    if (!isRecord(entry)) continue;
+    const fabricatedEntryField = forbiddenFields.find((field) =>
+      Object.prototype.hasOwnProperty.call(entry, field)
+    );
+    if (fabricatedEntryField) {
+      throw new ControlPlaneError(
+        "FABRICATED_BINDING_EVIDENCE",
+        `list_threads schemaVersion 4 entries do not expose ${fabricatedEntryField}`
+      );
+    }
+  }
+}
+
+function hasExactIdentityMarker(title, marker) {
+  return typeof title === "string" && (title === marker || title.startsWith(`${marker} `));
+}
+
+function queuedBindingScope(task) {
+  if (task.project?.environment === "worktree") {
+    return typeof task.project.projectId === "string" && task.project.projectId
+      ? `worktree:${task.project.projectId}`
+      : null;
+  }
+  if (task.project?.environment === "local") return `local:${task.cwd}`;
+  return null;
+}
+
+function hasExactQueuedProjectEvidence(task, entry) {
+  if (task.project?.environment === "worktree") {
+    return (
+      entry.projectId === task.project.projectId &&
+      typeof entry.cwd === "string" &&
+      entry.cwd.length > 0 &&
+      path.isAbsolute(entry.cwd)
+    );
+  }
+  return task.project?.environment === "local" && entry.cwd === task.cwd;
+}
+
+function validateNativeThreadEntry(entry) {
+  if (typeof entry.id !== "string" || !entry.id.trim()) {
+    throw new ControlPlaneError(
+      "INVALID_THREAD_LIST_ENTRY",
+      "Matched list_threads entry must expose a non-empty id"
+    );
+  }
+  if (entry.hostId != null && (typeof entry.hostId !== "string" || !entry.hostId.trim())) {
+    throw new ControlPlaneError(
+      "INVALID_THREAD_LIST_ENTRY",
+      "Matched list_threads entry hostId must be a non-empty string or null"
     );
   }
 }
@@ -1024,6 +1159,7 @@ function makeThreadRecord({ task, threadId = task.threadId, hostId = task.hostId
     sourceTaskId: task.sourceTaskId,
     title: task.threadTitle,
     project: structuredClone(task.project),
+    runtimeCwd: null,
     status,
     previousStatus: null,
     pinned: false,
@@ -1186,7 +1322,9 @@ function summarizeResult(result) {
     runtimeRevision: result.runtimeRevision ?? null,
     threadId: optionalText(result.threadId),
     hostId: optionalText(result.hostId),
-    bindingCount: Array.isArray(result.bindings) ? result.bindings.length : null,
+    listSchemaVersion: Number.isInteger(result.schemaVersion) ? result.schemaVersion : null,
+    threadCount: Array.isArray(result.threads) ? result.threads.length : null,
+    bindingCount: Number.isInteger(result.bindingCount) ? result.bindingCount : null,
     observationCount: Array.isArray(result.observations) ? result.observations.length : null
   });
 }
