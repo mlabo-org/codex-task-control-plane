@@ -56,7 +56,7 @@ The plugin contract covers the complete task-management family currently exposed
 |---|---|---|
 | Discover projects | `codex_app__list_projects` | Selects one exact project path before launch |
 | Create a visible task | `codex_app__create_thread` | Records the returned `threadId`/`hostId` or queued `clientThreadId` |
-| List tasks | `codex_app__list_threads` | Resolves queued worktrees by exact client ID and, when assigned, generated title |
+| List tasks | `codex_app__list_threads` | Resolves queued creation by exact marker plus selected project/runtime path evidence for worktrees, or exact declared path for local launches |
 | Wait for progress | `codex_app__wait_threads` | Waits on up to eight addressed tasks with cursors |
 | Read a task | `codex_app__read_thread` | Records only normalized state, result, artifacts, and evidence |
 | Continue a task | `codex_app__send_message_to_thread` | Enforces the run's round-trip bound and message provenance |
@@ -148,7 +148,7 @@ Override it with `CODEX_SESSION_CONTROL_PLANE_LEDGER` for an isolated run. Ledge
 
 - Creating a new visible task is performed only when the user explicitly asks for it.
 - There is no direct stop call in the current native task family. The plugin records `cancel_requested`; the user stops a running task in Codex, then the controller records the terminal observation.
-- A queued worktree is not bound by guesswork. `clientThreadId` is retained until `list_threads` returns one unique exact client-ID match and, when the controller assigned a title, the exact generated title also matches.
+- A queued creation is not bound by guesswork. `clientThreadId` remains provenance but is not matched because schemaVersion 4 `list_threads` entries do not expose it. The control plane accepts only one entry with the complete leading `[TO:<run>:<task>]` marker. Worktrees additionally require the selected `projectId` and a non-empty absolute runtime `cwd`; local launches require `cwd` equal to the declared project root. The runtime path is recorded separately without replacing that root. Suffix truncation is allowed, while recency, vague title fragments, fabricated IDs/full titles, and ambiguity are rejected. A queued fork without an assignable controller marker remains unbound and is reported as a blocker.
 - Dry-run operations return intents but must not be sent to native tools.
 - Runtime ledger data, installed plugin caches, and Codex task history are not source code.
 - This plugin coordinates tasks; it does not broaden permissions for deletion, publication, authentication, billing, or other external effects.
@@ -183,7 +183,7 @@ The automated suite uses normalized fake native-tool results and never creates a
 |---|---|---|
 | プロジェクト検出 | `codex_app__list_projects` | 起動前に絶対パスが一致する一件を選択 |
 | 画面に見える task 作成 | `codex_app__create_thread` | `threadId`/`hostId` または待機中の `clientThreadId` を記録 |
-| task 一覧 | `codex_app__list_threads` | worktree 準備中 task を client ID と、設定済みの場合は生成タイトルの完全一致で解決 |
+| task 一覧 | `codex_app__list_threads` | schemaVersion 4 の一件から、先頭 marker と worktree の project/runtime path 証拠、または local の宣言済み path 完全一致で解決 |
 | 完了待ち | `codex_app__wait_threads` | カーソル付きで最大8 taskをまとめて待機 |
 | task 読取 | `codex_app__read_thread` | 状態、結果、成果物、証跡だけを正規化して記録 |
 | task 継続 | `codex_app__send_message_to_thread` | 最大往復数とメッセージ出自を保持 |
@@ -273,7 +273,7 @@ localhost/loopback のみに bind し、プロセスごとの操作 token、厳�
 
 - 新しい画面 task は、現在のユーザーが明示的に作成を依頼した場合だけ作ります。
 - 現在の純正 task 系には直接停止ツールがありません。プラグインは `cancel_requested` を記録し、実行中 task はユーザーが Codex 画面で停止したあと、管制役が終了状態を記録します。
-- worktree 準備待ちを推測で紐付けません。`clientThreadId` を保持し、`list_threads` で client ID が一意に完全一致し、管制役がタイトルを設定している場合は生成タイトルも完全一致してから bind します。
+- 作成待ちを推測で紐付けません。`clientThreadId` は出自として保持しますが、schemaVersion 4 の `list_threads` entry には公開されないため照合には使いません。先頭の完全な `[TO:<run>:<task>]` marker に加え、worktree では選択済み `projectId` と空でない絶対 runtime `cwd`、local では宣言済み project root と同一の `cwd` を要求し、一件だけを bind します。runtime path は宣言済み root を上書きせず別に記録します。marker 後方のタイトル省略は許容し、更新時刻、曖昧な部分タイトル、捏造した ID/完全タイトル、複数候補は拒否します。管制 marker を設定できない待機中 fork は未 bind のまま blocker として報告します。
 - dry-run の呼び出し意図を純正ツールへ送ってはいけません。
 - 実行台帳、インストール済み plugin cache、Codex task 履歴はソースではありません。
 - このプラグインは task を管制しますが、削除、公開、認証、課金などの権限を拡張しません。

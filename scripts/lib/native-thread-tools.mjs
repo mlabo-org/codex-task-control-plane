@@ -203,8 +203,18 @@ export function createTaskRecord(input, { id, at }) {
   };
 }
 
+export function buildThreadIdentityMarker(run, task) {
+  if (typeof run?.id !== "string" || !run.id.trim()) {
+    throw contractError("INVALID_THREAD_IDENTITY", "run.id is required for thread identity");
+  }
+  if (typeof task?.id !== "string" || !task.id.trim()) {
+    throw contractError("INVALID_THREAD_IDENTITY", "task.id is required for thread identity");
+  }
+  return `[TO:${shortId(run.id)}:${shortId(task.id)}]`;
+}
+
 export function buildDispatchPreparation(run, task) {
-  const title = `[TO:${shortId(run.id)}:${shortId(task.id)}] ${task.role} · ${task.title}`;
+  const title = `${buildThreadIdentityMarker(run, task)} ${task.role} · ${task.title}`;
   return {
     projectLookup: {
       tool: "codex_app__list_projects",

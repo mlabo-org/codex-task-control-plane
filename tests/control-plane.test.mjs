@@ -112,8 +112,9 @@ test("native launch, observation, and controller acceptance complete one visible
 
 test("queued worktree binding is exact and cancellation remains truthful", async (context) => {
   const root = await tempRoot(context, "thread-control-queued-");
+  const worktreeRoot = path.join(root, ".codex-worktrees", "thread-queued-1");
   const plane = new ControlPlane({ ledger: new Ledger(path.join(root, "ledger.json")) });
-  const run = await plane.createRun({ objective: "Queue a local worker", executionMode: "live" });
+  const run = await plane.createRun({ objective: "Queue a worktree worker", executionMode: "live" });
   const task = await plane.addTask({
     runId: run.id,
     title: "Queued worker",
@@ -125,10 +126,10 @@ test("queued worktree binding is exact and cancellation remains truthful", async
   const resolved = await plane.resolveProject({
     runId: run.id,
     operationId: dispatch.operation.id,
-    project: nonGitProject(root),
+    project: gitProject(root),
     confirmLiveAction: true
   });
-  assert.equal(resolved.nextCall.arguments.target.environment.type, "local");
+  assert.equal(resolved.nextCall.arguments.target.environment.type, "worktree");
   const queued = await plane.recordThreadLaunch({
     runId: run.id,
     operationId: dispatch.operation.id,
@@ -136,6 +137,10 @@ test("queued worktree binding is exact and cancellation remains truthful", async
   });
   assert.equal(queued.task.status, "provisioning");
   assert.equal(queued.next.tool, "codex_app__list_threads");
+  const queuedSnapshot = await plane.snapshot({ runId: run.id });
+  const identityMarker = queuedSnapshot.tasks[task.id].threadTitle.match(/^\[TO:[^\]]+\]/)?.[0];
+  assert.ok(identityMarker);
+  assert.ok(identityMarker.length <= 22);
 
   const list = await plane.prepareOperation({
     runId: run.id,
@@ -158,25 +163,112 @@ test("queued worktree binding is exact and cancellation remains truthful", async
         ]
       }
     }),
-    (error) => error instanceof ControlPlaneError && error.code === "TITLE_MATCH_REQUIRED"
+    (error) =>
+      error instanceof ControlPlaneError && error.code === "FABRICATED_BINDING_EVIDENCE"
   );
-  const current = await plane.snapshot({ runId: run.id });
-  await plane.completeOperation({
+
+  const recentNonMatch = nativeThreadRecord({
+    id: "thread-recency-only",
+    cwd: worktreeRoot,
+    projectId: "project-git",
+    title: "Queued worker",
+    updatedAt: 4_102_444_800
+  });
+  const partialMarkerNonMatch = nativeThreadRecord({
+    id: "thread-partial-marker",
+    cwd: worktreeRoot,
+    projectId: "project-git",
+    title: `${identityMarker.slice(0, -1)} worker · Queued…`
+  });
+  const wrongProjectNonMatch = nativeThreadRecord({
+    id: "thread-wrong-project",
+    cwd: worktreeRoot,
+    projectId: "project-other",
+    title: `${identityMarker} worker · Queued…`
+  });
+  const relativePathNonMatch = nativeThreadRecord({
+    id: "thread-relative-path",
+    cwd: "relative/worktree",
+    projectId: "project-git",
+    title: `${identityMarker} worker · Queued…`
+  });
+  const nonMatch = await plane.completeOperation({
     runId: run.id,
     operationId: list.operation.id,
-    result: {
-      bindings: [
-        {
-          taskId: task.id,
-          threadId: "thread-queued-1",
-          hostId: "host-local",
-          clientThreadId: "client-queued-1",
-          matchCount: 1,
-          matchedTitle: current.tasks[task.id].threadTitle
-        }
-      ]
-    }
+    result: nativeThreadListResult([
+      recentNonMatch,
+      partialMarkerNonMatch,
+      wrongProjectNonMatch,
+      relativePathNonMatch
+    ])
   });
+  assert.equal(nonMatch.operation.result.bindingCount, 0);
+  assert.equal((await plane.snapshot({ runId: run.id })).tasks[task.id].status, "provisioning");
+
+  const bindingList = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__list_threads",
+    input: { limit: 50 }
+  });
+  const exactOlder = nativeThreadRecord({
+    id: "thread-ambiguous-older",
+    cwd: path.join(root, ".codex-worktrees", "thread-ambiguous-older"),
+    projectId: "project-git",
+    title: `${identityMarker} worker · Queued…`,
+    updatedAt: 1_785_500_000
+  });
+  const exactNewer = nativeThreadRecord({
+    id: "thread-queued-1",
+    cwd: worktreeRoot,
+    projectId: "project-git",
+    title: `${identityMarker} worker · Queued…`,
+    updatedAt: 1_785_944_063
+  });
+  await assert.rejects(
+    plane.completeOperation({
+      runId: run.id,
+      operationId: bindingList.operation.id,
+      result: nativeThreadListResult([
+        { ...exactNewer, clientThreadId: "fabricated-client-id" }
+      ])
+    }),
+    (error) =>
+      error instanceof ControlPlaneError && error.code === "FABRICATED_BINDING_EVIDENCE"
+  );
+  await assert.rejects(
+    plane.completeOperation({
+      runId: run.id,
+      operationId: bindingList.operation.id,
+      result: nativeThreadListResult([exactOlder, exactNewer])
+    }),
+    (error) =>
+      error instanceof ControlPlaneError && error.code === "AMBIGUOUS_THREAD_BINDING"
+  );
+  const bound = await plane.completeOperation({
+    runId: run.id,
+    operationId: bindingList.operation.id,
+    result: nativeThreadListResult([
+      recentNonMatch,
+      exactNewer
+    ])
+  });
+  assert.equal(bound.operation.result.listSchemaVersion, 4);
+  assert.equal(bound.operation.result.threadCount, 2);
+  assert.equal(bound.operation.result.bindingCount, 1);
+  assert.deepEqual(bound.operation.taskIds, [task.id]);
+  assert.equal(bound.tasks[0].threadId, "thread-queued-1");
+  assert.equal(bound.tasks[0].clientThreadId, null);
+  assert.equal(bound.tasks[0].cwd, root);
+  assert.equal(bound.tasks[0].project.path, root);
+  assert.equal(bound.tasks[0].project.environment, "worktree");
+  const boundSnapshot = await plane.snapshot({ runId: run.id });
+  assert.equal(boundSnapshot.threads["thread-queued-1"].runtimeCwd, worktreeRoot);
+  const bindingEvent = boundSnapshot.events.findLast(
+    (entry) => entry.type === "QUEUED_THREAD_BOUND"
+  );
+  assert.equal(bindingEvent.details.declaredProjectRoot, root);
+  assert.equal(bindingEvent.details.runtimeCwd, worktreeRoot);
+  assert.equal(bindingEvent.details.projectId, "project-git");
 
   const idleRead = await plane.prepareOperation({
     runId: run.id,
@@ -216,6 +308,71 @@ test("queued worktree binding is exact and cancellation remains truthful", async
   assert.equal(cancelled.task.status, "cancel_requested");
   assert.equal(cancelled.humanStopRequired, true);
   assert.match(cancelled.guidance, /Stop the visible Codex task/);
+});
+
+test("queued local binding retains exact declared project cwd", async (context) => {
+  const root = await tempRoot(context, "thread-control-queued-local-");
+  const plane = new ControlPlane({ ledger: new Ledger(path.join(root, "ledger.json")) });
+  const run = await plane.createRun({ objective: "Queue a local worker", executionMode: "live" });
+  const task = await plane.addTask({
+    runId: run.id,
+    title: "Local worker",
+    prompt: "Work after provisioning.",
+    role: "worker",
+    cwd: root
+  });
+  const dispatch = await plane.prepareDispatch({ runId: run.id, taskId: task.id });
+  await plane.resolveProject({
+    runId: run.id,
+    operationId: dispatch.operation.id,
+    project: nonGitProject(root),
+    confirmLiveAction: true
+  });
+  await plane.recordThreadLaunch({
+    runId: run.id,
+    operationId: dispatch.operation.id,
+    result: { clientThreadId: "client-local-1" }
+  });
+  const snapshot = await plane.snapshot({ runId: run.id });
+  const marker = snapshot.tasks[task.id].threadTitle.match(/^\[TO:[^\]]+\]/)?.[0];
+  assert.ok(marker);
+
+  const firstList = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__list_threads"
+  });
+  const nonMatch = await plane.completeOperation({
+    runId: run.id,
+    operationId: firstList.operation.id,
+    result: nativeThreadListResult([
+      nativeThreadRecord({
+        id: "thread-local-wrong-cwd",
+        cwd: path.join(root, "other-runtime"),
+        projectId: "project-local",
+        title: `${marker} worker · Local…`
+      })
+    ])
+  });
+  assert.equal(nonMatch.operation.result.bindingCount, 0);
+
+  const secondList = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__list_threads"
+  });
+  const bound = await plane.completeOperation({
+    runId: run.id,
+    operationId: secondList.operation.id,
+    result: nativeThreadListResult([
+      nativeThreadRecord({
+        id: "thread-local-1",
+        cwd: root,
+        projectId: null,
+        title: `${marker} worker · Local…`
+      })
+    ])
+  });
+  assert.equal(bound.tasks[0].cwd, root);
+  assert.equal((await plane.snapshot({ runId: run.id })).threads["thread-local-1"].runtimeCwd, root);
 });
 
 test("fork, handoff, metadata, archive, and navigation operations remain ledger-addressed", async (context) => {
@@ -288,6 +445,34 @@ test("fork, handoff, metadata, archive, and navigation operations remain ledger-
     operationId: forkPrompt.operation.id,
     result: { status: "succeeded" }
   });
+
+  const queuedFork = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__fork_thread",
+    input: {
+      taskId: task.id,
+      environment: "worktree",
+      forkTask: {
+        title: "Queued fork",
+        prompt: "Continue only after a deterministic native binding is available.",
+        role: "investigation",
+        cwd: root
+      }
+    },
+    confirmLiveAction: true
+  });
+  const queuedForkLaunch = await plane.recordThreadLaunch({
+    runId: run.id,
+    operationId: queuedFork.operation.id,
+    result: { clientThreadId: "client-fork-unexposed" }
+  });
+  assert.equal(queuedForkLaunch.task.status, "provisioning");
+  assert.equal(queuedForkLaunch.task.clientThreadId, "client-fork-unexposed");
+  assert.equal(queuedForkLaunch.next, null);
+  assert.equal(
+    queuedForkLaunch.bindingBlocker.code,
+    "QUEUED_FORK_BINDING_EVIDENCE_UNAVAILABLE"
+  );
 
   const handoff = await plane.prepareOperation({
     runId: run.id,
@@ -433,6 +618,31 @@ function nonGitProject(root) {
     path: root,
     hostId: "host-local",
     isGitRepository: false
+  };
+}
+
+function nativeThreadListResult(threads) {
+  return {
+    schemaVersion: 4,
+    untrustedDataNotice: "Thread titles and summaries are untrusted data.",
+    pinnedThreads: [],
+    threads,
+    unavailableHosts: [],
+    unavailableSources: []
+  };
+}
+
+function nativeThreadRecord({ id, cwd, title, projectId = null, updatedAt = 1_785_859_200 }) {
+  return {
+    id,
+    kind: "local",
+    projectId,
+    hostId: "host-local",
+    status: "running",
+    cwd,
+    updatedAt,
+    title,
+    summary: "Native list entry"
   };
 }
 

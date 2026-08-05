@@ -133,6 +133,7 @@
         "sourceTaskId": { "$ref": "#/$defs/nullableString" },
         "title": { "$ref": "#/$defs/nullableString" },
         "project": { "type": ["object", "null"] },
+        "runtimeCwd": { "$ref": "#/$defs/nullableString" },
         "status": {
           "type": "string",
           "enum": ["provisioning", "active", "idle", "blocked", "needs_attention", "handoff", "completed", "failed", "archived"]
