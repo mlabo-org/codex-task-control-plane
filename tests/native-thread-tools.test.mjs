@@ -7,6 +7,7 @@ import {
   PREPARABLE_THREAD_TOOLS,
   buildDispatchPreparation,
   buildNativeOperationIntent,
+  buildWorkerPrompt,
   capabilityReport,
   createTaskRecord,
   resolveProjectLaunch
@@ -61,7 +62,11 @@ test("task contracts guard model authority and Coding Agents scope", () => {
   assert.equal(preparation.createThreadTemplate.model, "gpt-example");
   assert.equal(preparation.createThreadTemplate.thinking, "high");
   assert.match(preparation.createThreadTemplate.prompt, /Coding Agents workflow/);
+  assert.match(preparation.createThreadTemplate.prompt, /\$coding-agents/);
   assert.match(preparation.createThreadTemplate.prompt, /src and focused tests/);
+  const directTask = createTaskRecord(base, { id: "task_2", at: "now" });
+  const directPrompt = buildWorkerPrompt({ id: "run_1" }, directTask);
+  assert.doesNotMatch(directPrompt, /Coding Agents workflow|\$coding-agents/);
 });
 
 test("project resolution maps Git to worktree and non-Git to local", () => {

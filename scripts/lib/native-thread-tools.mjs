@@ -489,7 +489,7 @@ export function buildWorkerPrompt(run, task) {
     lines.push(
       "",
       "Coding Agents workflow:",
-      "- Use the installed `coding-agents` skill for this task; the user selected it through the controller.",
+      "- Invoke the installed `$coding-agents` skill for this task; the user selected it through the controller.",
       "- Treat this thread's project/worktree root as the Coding Agents jobsite.",
       "- Inspect existing `.coding-agents` state before intake and resume related state semantically.",
       `- Keep scope to: ${task.workflow.codingAgentsScope}.`,
