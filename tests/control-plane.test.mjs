@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -308,6 +309,114 @@ test("queued worktree binding is exact and cancellation remains truthful", async
   assert.equal(cancelled.task.status, "cancel_requested");
   assert.equal(cancelled.humanStopRequired, true);
   assert.match(cancelled.guidance, /Stop the visible Codex task/);
+});
+
+test("queued worktree binding with null projectId requires canonical Git common-directory identity", async (context) => {
+  const root = await tempRoot(context, "thread-control-null-project-id-");
+  const otherRoot = await tempRoot(context, "thread-control-other-project-");
+  const worktreeRoot = path.join(root, ".codex-worktrees", "thread-null-project-id");
+  const ambiguousWorktreeRoot = path.join(root, ".codex-worktrees", "thread-null-project-id-ambiguous");
+  await initializeGitRepository(root);
+  await initializeGitRepository(otherRoot);
+  createGitWorktree(root, worktreeRoot, "thread-null-project-id");
+  createGitWorktree(root, ambiguousWorktreeRoot, "thread-null-project-id-ambiguous");
+
+  const plane = new ControlPlane({ ledger: new Ledger(path.join(root, "ledger.json")) });
+  const run = await plane.createRun({ objective: "Bind a queued worktree without a project ID", executionMode: "live" });
+  const task = await plane.addTask({
+    runId: run.id,
+    title: "Null project ID worker",
+    prompt: "Work after provisioning.",
+    role: "worker",
+    cwd: root
+  });
+  const dispatch = await plane.prepareDispatch({ runId: run.id, taskId: task.id });
+  await plane.resolveProject({
+    runId: run.id,
+    operationId: dispatch.operation.id,
+    project: gitProject(root),
+    confirmLiveAction: true
+  });
+  await plane.recordThreadLaunch({
+    runId: run.id,
+    operationId: dispatch.operation.id,
+    result: { clientThreadId: "client-null-project-id" }
+  });
+  const snapshot = await plane.snapshot({ runId: run.id });
+  const marker = snapshot.tasks[task.id].threadTitle.match(/^\[TO:[^\]]+\]/)?.[0];
+  assert.ok(marker);
+
+  const incompleteMarker = nativeThreadRecord({
+    id: "thread-null-incomplete-marker",
+    cwd: worktreeRoot,
+    title: `${marker.slice(0, -1)} worker · Queued…`
+  });
+  const mismatchedRepository = nativeThreadRecord({
+    id: "thread-null-wrong-repository",
+    cwd: otherRoot,
+    title: `${marker} worker · Queued…`
+  });
+  const missingCwd = nativeThreadRecord({
+    id: "thread-null-missing-cwd",
+    cwd: undefined,
+    title: `${marker} worker · Queued…`
+  });
+  const relativeCwd = nativeThreadRecord({
+    id: "thread-null-relative-cwd",
+    cwd: "relative/worktree",
+    title: `${marker} worker · Queued…`
+  });
+  const noMatchList = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__list_threads",
+    input: { limit: 50 }
+  });
+  const noMatch = await plane.completeOperation({
+    runId: run.id,
+    operationId: noMatchList.operation.id,
+    result: nativeThreadListResult([incompleteMarker, mismatchedRepository, missingCwd, relativeCwd])
+  });
+  assert.equal(noMatch.operation.result.bindingCount, 0);
+  assert.equal((await plane.snapshot({ runId: run.id })).tasks[task.id].status, "provisioning");
+
+  const sameRepository = nativeThreadRecord({
+    id: "thread-null-project-id",
+    cwd: worktreeRoot,
+    title: `${marker} worker · Queued…`
+  });
+  const sameRepositoryAmbiguous = nativeThreadRecord({
+    id: "thread-null-project-id-ambiguous",
+    cwd: ambiguousWorktreeRoot,
+    title: `${marker} worker · Queued…`
+  });
+  const ambiguousList = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__list_threads",
+    input: { limit: 50 }
+  });
+  await assert.rejects(
+    plane.completeOperation({
+      runId: run.id,
+      operationId: ambiguousList.operation.id,
+      result: nativeThreadListResult([sameRepository, sameRepositoryAmbiguous])
+    }),
+    (error) => error instanceof ControlPlaneError && error.code === "AMBIGUOUS_THREAD_BINDING"
+  );
+  assert.equal((await plane.snapshot({ runId: run.id })).tasks[task.id].status, "provisioning");
+
+  const bindingList = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__list_threads",
+    input: { limit: 50 }
+  });
+  const bound = await plane.completeOperation({
+    runId: run.id,
+    operationId: bindingList.operation.id,
+    result: nativeThreadListResult([sameRepository])
+  });
+  assert.equal(bound.operation.result.bindingCount, 1);
+  assert.equal(bound.tasks[0].threadId, "thread-null-project-id");
+  assert.equal((await plane.snapshot({ runId: run.id })).threads["thread-null-project-id"].runtimeCwd, worktreeRoot);
 });
 
 test("queued local binding retains exact declared project cwd", async (context) => {
@@ -644,6 +753,23 @@ function nativeThreadRecord({ id, cwd, title, projectId = null, updatedAt = 1_78
     title,
     summary: "Native list entry"
   };
+}
+
+async function initializeGitRepository(root) {
+  runGit(["init", "--initial-branch=main", root]);
+  runGit(["config", "user.email", "test@example.com"], root);
+  runGit(["config", "user.name", "Test User"], root);
+  await fs.writeFile(path.join(root, "README.md"), "test\n");
+  runGit(["add", "README.md"], root);
+  runGit(["commit", "-m", "Initial commit"], root);
+}
+
+function createGitWorktree(root, worktreeRoot, branch) {
+  runGit(["worktree", "add", "-b", branch, worktreeRoot], root);
+}
+
+function runGit(args, cwd = undefined) {
+  execFileSync("git", args, { cwd, stdio: "ignore" });
 }
 
 async function tempRoot(context, prefix) {

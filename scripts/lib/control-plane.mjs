@@ -1,4 +1,6 @@
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { Ledger } from "./ledger.mjs";
 import { makeId, nowIso } from "./ids.mjs";
@@ -900,14 +902,36 @@ function queuedBindingScope(task) {
 
 function hasExactQueuedProjectEvidence(task, entry) {
   if (task.project?.environment === "worktree") {
-    return (
-      entry.projectId === task.project.projectId &&
-      typeof entry.cwd === "string" &&
-      entry.cwd.length > 0 &&
-      path.isAbsolute(entry.cwd)
-    );
+    if (typeof entry.cwd !== "string" || !entry.cwd || !path.isAbsolute(entry.cwd)) return false;
+    if (entry.projectId != null) return entry.projectId === task.project.projectId;
+    return sameGitCommonDirectory(task.cwd, entry.cwd);
   }
   return task.project?.environment === "local" && entry.cwd === task.cwd;
+}
+
+function sameGitCommonDirectory(projectRoot, runtimeCwd) {
+  const projectCommonDirectory = gitCommonDirectory(projectRoot);
+  const runtimeCommonDirectory = gitCommonDirectory(runtimeCwd);
+  return (
+    projectCommonDirectory != null &&
+    runtimeCommonDirectory != null &&
+    projectCommonDirectory === runtimeCommonDirectory
+  );
+}
+
+function gitCommonDirectory(cwd) {
+  if (typeof cwd !== "string" || !cwd || !path.isAbsolute(cwd)) return null;
+  try {
+    const commonDirectory = execFileSync(
+      "git",
+      ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 2_000 }
+    ).trim();
+    if (!commonDirectory || !path.isAbsolute(commonDirectory)) return null;
+    return fsSync.realpathSync(commonDirectory);
+  } catch {
+    return null;
+  }
 }
 
 function validateNativeThreadEntry(entry) {
