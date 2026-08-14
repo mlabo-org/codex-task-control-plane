@@ -55,7 +55,7 @@ const tools = new Map([
     "control_plane_add_task",
     {
       description:
-        "Add one complete worker-task contract. Model/thinking overrides require explicit user_request authority; Coding Agents mode requires a declared coding scope.",
+        "Add one complete worker-task contract. Model/thinking overrides require explicit user_request authority; Coding Agent Orchestrator mode requires a declared coding scope.",
       inputSchema: taskInputSchema(),
       handler: (args) => controlPlane.addTask(args)
     }
@@ -230,9 +230,9 @@ function taskInputSchema() {
         enum: ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
       },
       profileAuthority: { type: "string" },
-      workerMode: { type: "string", enum: ["direct", "coding-agents"], default: "direct" },
-      codingAgentsScope: { type: "string" },
-      codingAgentsDeliveryMode: {
+      workerMode: { type: "string", enum: ["direct", "coding-agent-orchestrator"], default: "direct" },
+      codingAgentOrchestratorScope: { type: "string" },
+      codingAgentOrchestratorDeliveryMode: {
         type: "string",
         enum: ["ITERATIVE_DELIVERY", "ONE_SHOT_QUALITY"],
         default: "ITERATIVE_DELIVERY"

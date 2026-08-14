@@ -1,7 +1,7 @@
 {
   "name": "codex-thread-orchestration",
   "version": "0.2.0",
-  "description": "Native Codex thread orchestration with visible tasks, durable control state, and Coding Agents worker integration.",
+  "description": "Native Codex thread orchestration with visible tasks, durable control state, and Coding Agent Orchestrator worker integration.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -18,7 +18,8 @@
     "codex",
     "thread-orchestration",
     "multi-agent",
-    "coding-agents",
+    "coding-agent-orchestrator",
+    "cao",
     "control-plane"
   ],
   "engines": {

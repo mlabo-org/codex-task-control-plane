@@ -59,7 +59,7 @@ const ALLOWED_THINKING = new Set([
   "ultra"
 ]);
 
-const ALLOWED_WORKER_MODES = new Set(["direct", "coding-agents"]);
+const ALLOWED_WORKER_MODES = new Set(["direct", "coding-agent-orchestrator"]);
 const ALLOWED_ENVIRONMENTS = new Set(["auto", "local", "worktree"]);
 const ALLOWED_DELIVERY_MODES = new Set(["ITERATIVE_DELIVERY", "ONE_SHOT_QUALITY"]);
 const ALLOWED_MESSAGE_TYPES = new Set([
@@ -120,7 +120,7 @@ export function validateTaskContract(input) {
     );
   }
   if (input.startingState != null) validateStartingState(input.startingState);
-  const deliveryMode = input.codingAgentsDeliveryMode || "ITERATIVE_DELIVERY";
+  const deliveryMode = input.codingAgentOrchestratorDeliveryMode || "ITERATIVE_DELIVERY";
   if (!ALLOWED_DELIVERY_MODES.has(deliveryMode)) {
     throw contractError("INVALID_DELIVERY_MODE", `Unsupported delivery mode: ${deliveryMode}`);
   }
@@ -137,17 +137,20 @@ export function validateTaskContract(input) {
       "maxDelegationDepth must be an integer from 0 to 8"
     );
   }
-  if (depth > 0 && workerMode !== "coding-agents") {
+  if (depth > 0 && workerMode !== "coding-agent-orchestrator") {
     throw contractError(
-      "DELEGATION_REQUIRES_CODING_AGENTS",
-      "maxDelegationDepth is only meaningful for a Coding Agents worker"
+      "DELEGATION_REQUIRES_CAO",
+      "maxDelegationDepth is only meaningful for a Coding Agent Orchestrator worker"
     );
   }
-  if (workerMode === "coding-agents") {
-    if (typeof input.codingAgentsScope !== "string" || !input.codingAgentsScope.trim()) {
+  if (workerMode === "coding-agent-orchestrator") {
+    if (
+      typeof input.codingAgentOrchestratorScope !== "string" ||
+      !input.codingAgentOrchestratorScope.trim()
+    ) {
       throw contractError(
-        "CODING_AGENTS_SCOPE_REQUIRED",
-        "codingAgentsScope is required for Coding Agents worker threads"
+        "CAO_SCOPE_REQUIRED",
+        "codingAgentOrchestratorScope is required for Coding Agent Orchestrator worker threads"
       );
     }
     if (depth > 0 && !isUserAuthority(input.delegationAuthority)) {
@@ -185,8 +188,8 @@ export function createTaskRecord(input, { id, at }) {
     },
     workflow: {
       mode: input.workerMode || "direct",
-      codingAgentsScope: input.codingAgentsScope?.trim() || null,
-      deliveryMode: input.codingAgentsDeliveryMode || "ITERATIVE_DELIVERY",
+      codingAgentOrchestratorScope: input.codingAgentOrchestratorScope?.trim() || null,
+      deliveryMode: input.codingAgentOrchestratorDeliveryMode || "ITERATIVE_DELIVERY",
       deliveryModeAuthority: input.deliveryModeAuthority?.trim() || null,
       maxDelegationDepth: input.maxDelegationDepth ?? 0,
       delegationAuthority: input.delegationAuthority?.trim() || null
@@ -485,17 +488,17 @@ export function buildWorkerPrompt(run, task) {
     lines.push("", "Acceptance criteria:");
     for (const criterion of task.acceptanceCriteria) lines.push(`- ${criterion}`);
   }
-  if (task.workflow.mode === "coding-agents") {
+  if (task.workflow.mode === "coding-agent-orchestrator") {
     lines.push(
       "",
-      "Coding Agents workflow:",
-      "- Invoke the installed `$coding-agents` skill for this task; the user selected it through the controller.",
-      "- Treat this thread's project/worktree root as the Coding Agents jobsite.",
-      "- Inspect existing `.coding-agents` state before intake and resume related state semantically.",
-      `- Keep scope to: ${task.workflow.codingAgentsScope}.`,
+      "Coding Agent Orchestrator workflow:",
+      "- Invoke the installed `$coding-agent-orchestrator` skill for this task; the user explicitly selected it through the controller.",
+      "- Treat this thread's project/worktree root as the Coding Agent Orchestrator jobsite.",
+      "- Inspect existing `.coding-agent-orchestrator` continuity state and resume related state semantically.",
+      `- Keep scope to: ${task.workflow.codingAgentOrchestratorScope}.`,
       `- Use delivery mode ${task.workflow.deliveryMode}.`,
       `- Maximum internal subagent delegation depth: ${task.workflow.maxDelegationDepth}.`,
-      "- Coding Agents subagents remain internal to this worker thread; do not confuse them with sibling visible tasks."
+      "- Coding Agent Orchestrator subagents remain internal to this worker thread; do not confuse them with sibling visible tasks."
     );
   }
   return lines.join("\n");

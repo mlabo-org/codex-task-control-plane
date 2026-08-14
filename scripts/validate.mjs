@@ -110,7 +110,7 @@ assert.match(installContract, /npm run plugin:install/);
 assert.match(installContract, /Do not run `codex plugin marketplace add`/);
 assert.equal(packageJson.scripts["plugin:install:check"], "node scripts/install-plugin.mjs --check");
 assert.equal(packageJson.scripts["plugin:install"], "node scripts/install-plugin.mjs --install");
-assert.match(gitignore, /^\.coding-agents\/$/m);
+assert.match(gitignore, /^\.coding-agent-orchestrator\/$/m);
 assert.match(installerSource, /execFileAsync\("codex", args/);
 assert.match(installerSource, /\[\s*"plugin",\s*"add"/);
 assert.match(installerSource, /PLUGIN_SOURCE_PATH = `\.\/plugins\/\$\{PLUGIN_NAME\}`/);
@@ -141,7 +141,7 @@ for (const tool of [
 }
 
 assert.doesNotMatch(nativeSource, /node:child_process|\bspawn\s*\(|\bexecFile\s*\(/);
-assert.match(nativeSource, /workerMode === "coding-agents"/);
+assert.match(nativeSource, /workerMode === "coding-agent-orchestrator"/);
 assert.match(nativeSource, /environment === "auto"/);
 assert.match(nativeSource, /isGitRepository \? "worktree" : "local"/);
 assert.match(uiSource, /control-plane-language/);

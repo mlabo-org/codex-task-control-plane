@@ -1,6 +1,6 @@
 ---
 name: control-codex-sessions
-description: Orchestrate user-visible Codex tasks with native thread tools and a durable ledger. Trigger for thread orchestration, スレッドオーケストレーション, 上位管制, cross-thread delegation, Coding Agents per task, task handoff, fork, pin, archive, or navigation. Exclude ordinary subagents inside one task.
+description: Orchestrate user-visible Codex tasks with native thread tools and a durable ledger. Trigger for thread orchestration, スレッドオーケストレーション, 上位管制, cross-thread delegation, Coding Agent Orchestrator (CAO) per task, task handoff, fork, pin, archive, or navigation. Exclude ordinary subagents inside one task.
 ---
 
 # Control Codex Sessions
@@ -119,11 +119,11 @@ For `handoff_thread`, record the returned runtime operation ID first. Then prepa
 
 To relay worker A context to worker B, the controller prepares `send_message_to_thread` for B and includes `sourceTaskId: A` plus an appropriate `messageType`. The control ledger retains both task/thread addresses and provenance. Do not instruct workers to discover or steer sibling top-level tasks themselves.
 
-## Coding Agents inside each worker
+## Coding Agent Orchestrator inside each worker
 
-Use `workerMode: coding-agents` only when the user selected Coding Agents for that worker or whole fleet. Set `codingAgentsScope` to the exact coding slice. The generated prompt instructs the worker to use its own project/worktree root as the jobsite, inspect related `.coding-agents` state, apply the declared delivery mode, and return a complete first handoff.
+Use `workerMode: coding-agent-orchestrator` only when the user explicitly selected Coding Agent Orchestrator for that worker or whole fleet. Set `codingAgentOrchestratorScope` to the exact coding slice. The generated prompt invokes `$coding-agent-orchestrator` inside the visible worker, treats the controller's explicit selection as activation, uses the worker's own project/worktree root as the jobsite, inspects related `.coding-agent-orchestrator` continuity state, applies the declared delivery mode, and requires a complete first handoff.
 
-Set a positive `maxDelegationDepth` only with explicit delegation authority recorded as `user_request:<reference>`. Coding Agents subagents remain internal to that visible worker; they are not sibling tasks in the controller ledger.
+Set a positive `maxDelegationDepth` only with explicit delegation authority recorded as `user_request:<reference>`. Coding Agent Orchestrator subagents remain internal to that visible worker; they are not sibling tasks in the controller ledger.
 
 Use `ONE_SHOT_QUALITY` only when the current user explicitly named that mode, and record `deliveryModeAuthority` as `user_request:<reference>`. Otherwise keep `ITERATIVE_DELIVERY`.
 

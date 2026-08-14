@@ -4,7 +4,7 @@
 
 Codex Thread Orchestration is a Codex plugin for coordinating multiple **user-visible Codex tasks** from one controller. Native Codex tools own task creation, worktrees, messaging, waiting, handoff, and sidebar state; the plugin adds a durable control ledger, validated call intents, task state, controller decisions, and a bilingual dashboard.
 
-It can also start each visible worker with a `coding-agents` contract, so every isolated task or worktree can run its own bounded Coding Agents workflow without confusing those internal subagents with sibling top-level tasks.
+It can also start each visible worker with a `coding-agent-orchestrator` contract, so every isolated task or worktree can run its own bounded Coding Agent Orchestrator workflow without confusing those internal subagents with sibling top-level tasks.
 
 ## Article / 解説記事
 
@@ -37,8 +37,8 @@ flowchart LR
   C --> N["Native Codex task tools"]
   N --> W1["Visible worker task A"]
   N --> W2["Visible worker task B"]
-  W1 --> A1["Optional Coding Agents subagents"]
-  W2 --> A2["Optional Coding Agents subagents"]
+  W1 --> A1["Optional CAO subagents"]
+  W2 --> A2["Optional CAO subagents"]
   C <--> L["Control-plane MCP and atomic ledger"]
   L --> D["Local bilingual dashboard"]
 ```
@@ -83,24 +83,24 @@ The host may expose different capabilities across Codex versions. `control_plane
 
 Model or thinking overrides are omitted by default. They are accepted only when the current user explicitly requested them and the task records a `user_request:...` authority. Live mutations similarly require an explicit confirmation at the control-plane boundary.
 
-### Coding Agents workers
+### Coding Agent Orchestrator workers
 
-Set `workerMode` to `coding-agents` and provide `codingAgentsScope` when a visible worker should run Coding Agents internally. The generated worker prompt instructs that task to:
+Set `workerMode` to `coding-agent-orchestrator` and provide `codingAgentOrchestratorScope` when a visible worker should run Coding Agent Orchestrator internally. The generated worker prompt explicitly invokes `$coding-agent-orchestrator` and instructs that task to:
 
 - use its own project/worktree root as the jobsite;
-- inspect and continue related `.coding-agents` state;
+- inspect and continue related `.coding-agent-orchestrator` continuity state;
 - keep work inside the declared scope and delivery mode;
 - return a complete first handoff with artifacts and verification;
 - keep internal subagents subordinate to that worker task.
 
-Top-level visible tasks and internal subagents are separate layers. The controller owns the former; each Coding Agents worker owns its internal bounded delegation.
+Top-level visible tasks and internal subagents are separate layers. The controller owns the former; each Coding Agent Orchestrator worker owns its internal bounded delegation.
 
 ### Requirements and source use
 
 - Codex desktop with the native task tools listed above
 - Node.js 22 or later (Node.js 24 is used in CI)
 - Git for worktree-backed worker isolation
-- Coding Agents only when `workerMode: coding-agents` is selected
+- Coding Agent Orchestrator only when `workerMode: coding-agent-orchestrator` is explicitly selected
 
 The repository has no third-party runtime packages.
 
@@ -124,7 +124,7 @@ Example requests:
 
 > Use Codex Thread Orchestration. Create three visible Codex tasks for this Git project, one worktree per task, and manage them from one controller.
 
-> Use 上位管制. Give each visible task its own Coding Agents workflow, wait for all results, and return only controller-accepted work.
+> Use 上位管制. Give each visible task its own Coding Agent Orchestrator workflow, wait for all results, and return only controller-accepted work.
 
 ### Dashboard
 
@@ -210,24 +210,24 @@ Codex のバージョンによって公開ツールは変わり得ます。ラ�
 
 モデルや推論深度は既定で上書きしません。現在のユーザーが明示し、task に `user_request:...` の根拠が記録された場合だけ上書きします。ライブ変更も同様に、管制面で明示確認を要求します。
 
-### Coding Agents との融合
+### Coding Agent Orchestrator との融合
 
-画面に見えるワーカー task の中で Coding Agents を動かす場合、`workerMode` を `coding-agents` にし、`codingAgentsScope` を指定します。生成される指示は、その task に次を要求します。
+画面に見えるワーカー task の中で Coding Agent Orchestrator を動かす場合、`workerMode` を `coding-agent-orchestrator` にし、`codingAgentOrchestratorScope` を指定します。生成される指示は `$coding-agent-orchestrator` を明示的に起動し、その task に次を要求します。
 
 - 自分のプロジェクト/worktree ルートを jobsite とする。
-- 関連する既存 `.coding-agents` 状態を確認して継続する。
+- 関連する既存 `.coding-agent-orchestrator` continuity state を確認して継続する。
 - 宣言済みスコープと delivery mode の内側で作業する。
 - 成果物と検証を含む、責任範囲として完成した初回 handoff を返す。
 - 内部 subagent を、その画面 task の責任下に留める。
 
-つまり、画面に並ぶトップレベル task と、各 task 内部の subagent は別レイヤーです。前者を上位管制が所有し、後者を各 Coding Agents ワーカーが所有します。
+つまり、画面に並ぶトップレベル task と、各 task 内部の subagent は別レイヤーです。前者を上位管制が所有し、後者を各 Coding Agent Orchestrator ワーカーが所有します。
 
 ### 必要環境とソース利用
 
 - 上記の純正 task ツールを公開している Codex desktop
 - Node.js 22 以降（CI は Node.js 24）
 - worktree 分離を使う場合は Git
-- `workerMode: coding-agents` の場合のみ Coding Agents
+- `workerMode: coding-agent-orchestrator` を明示選択した場合のみ Coding Agent Orchestrator
 
 外部 runtime package への依存はありません。
 
@@ -251,7 +251,7 @@ manifest は `.codex-plugin/plugin.json`、MCP 定義は `.mcp.json`、skill は
 
 > Codex Thread Orchestration を使って、この Git プロジェクトに task を3本作り、taskごとに worktree を分けてひとつの管制役から管理して。
 
-> 上位管制を使って、各 task の中では Coding Agents を個別に動かし、全結果を待って管制役が受理した成果だけ返して。
+> 上位管制を使って、各 task の中では Coding Agent Orchestrator を個別に動かし、全結果を待って管制役が受理した成果だけ返して。
 
 ### ダッシュボード
 

@@ -93,8 +93,8 @@ async function seedDemo(plane, cwd) {
     prompt: "Implement the assigned slice and return artifacts plus primary-path evidence.",
     role: "implementation",
     cwd,
-    workerMode: "coding-agents",
-    codingAgentsScope: "one isolated implementation workstream",
+    workerMode: "coding-agent-orchestrator",
+    codingAgentOrchestratorScope: "one isolated implementation workstream",
     acceptanceCriteria: ["The first handoff is complete for the declared slice"]
   });
   await plane.simulateTask({
@@ -107,7 +107,7 @@ async function seedDemo(plane, cwd) {
   await plane.simulateTask({
     runId: run.id,
     taskId: implementation.id,
-    summary: "Coding Agents remains scoped inside its visible worker task.",
+    summary: "Coding Agent Orchestrator remains scoped inside its visible worker task.",
     artifacts: ["skills/control-codex-sessions/SKILL.md"],
     verification: ["dry-run worker-boundary contract passed"]
   });

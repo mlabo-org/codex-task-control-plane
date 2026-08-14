@@ -1,7 +1,7 @@
 {
   "name": "codex-thread-orchestration",
-  "version": "0.2.0+codex.20260803011353",
-  "description": "Orchestrate user-visible Codex tasks with native thread tools, durable state, controller decisions, and optional Coding Agents workers.",
+  "version": "0.2.0+codex.20260814165137",
+  "description": "Orchestrate user-visible Codex tasks with native thread tools, durable state, controller decisions, and optional Coding Agent Orchestrator (CAO) workers.",
   "author": {
     "name": "Makoto Suzuki"
   },
@@ -9,18 +9,19 @@
   "repository": "https://github.com/mlabo-org/codex-thread-orchestration",
   "license": "MIT",
   "keywords": [
-    "スレッドオーケストレーション",
-    "上位管制",
+    "\u30b9\u30ec\u30c3\u30c9\u30aa\u30fc\u30b1\u30b9\u30c8\u30ec\u30fc\u30b7\u30e7\u30f3",
+    "\u4e0a\u4f4d\u7ba1\u5236",
     "thread-orchestration",
     "visible-codex-tasks",
-    "coding-agents",
+    "coding-agent-orchestrator",
+    "cao",
     "ledger"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Codex Thread Orchestration",
     "shortDescription": "Coordinate visible Codex tasks with durable control state",
-    "longDescription": "Create, observe, continue, fork, hand off, organize, and review user-visible Codex tasks through the native Codex task-tool family. Keep project resolution, thread addresses, operation intents, results, controller decisions, and optional Coding Agents worker boundaries in an atomic local ledger.",
+    "longDescription": "Create, observe, continue, fork, hand off, organize, and review user-visible Codex tasks through the native Codex task-tool family. Keep project resolution, thread addresses, operation intents, results, controller decisions, and optional Coding Agent Orchestrator worker boundaries in an atomic local ledger.",
     "developerName": "Makoto Suzuki",
     "category": "Productivity",
     "capabilities": [
@@ -29,8 +30,8 @@
     ],
     "defaultPrompt": [
       "Create a dry-run thread-orchestration plan for this project.",
-      "Use 上位管制 to coordinate visible Codex tasks and retain their task IDs.",
-      "Run one Coding Agents workflow inside each isolated visible worker task."
+      "Use \u4e0a\u4f4d\u7ba1\u5236 to coordinate visible Codex tasks and retain their task IDs.",
+      "Run one explicitly selected Coding Agent Orchestrator workflow inside each isolated visible worker task."
     ],
     "brandColor": "#2563EB"
   },

@@ -134,11 +134,11 @@
         },
         "workerMode": {
           "type": "string",
-          "enum": ["direct", "coding-agents"],
+          "enum": ["direct", "coding-agent-orchestrator"],
           "default": "direct"
         },
-        "codingAgentsScope": { "type": "string", "minLength": 1 },
-        "codingAgentsDeliveryMode": {
+        "codingAgentOrchestratorScope": { "type": "string", "minLength": 1 },
+        "codingAgentOrchestratorDeliveryMode": {
           "type": "string",
           "enum": ["ITERATIVE_DELIVERY", "ONE_SHOT_QUALITY"],
           "default": "ITERATIVE_DELIVERY"
@@ -165,10 +165,10 @@
       "allOf": [
         {
           "if": {
-            "properties": { "workerMode": { "const": "coding-agents" } },
+            "properties": { "workerMode": { "const": "coding-agent-orchestrator" } },
             "required": ["workerMode"]
           },
-          "then": { "required": ["codingAgentsScope"] }
+          "then": { "required": ["codingAgentOrchestratorScope"] }
         },
         {
           "if": {
@@ -181,8 +181,8 @@
         },
         {
           "if": {
-            "properties": { "codingAgentsDeliveryMode": { "const": "ONE_SHOT_QUALITY" } },
-            "required": ["codingAgentsDeliveryMode"]
+            "properties": { "codingAgentOrchestratorDeliveryMode": { "const": "ONE_SHOT_QUALITY" } },
+            "required": ["codingAgentOrchestratorDeliveryMode"]
           },
           "then": { "required": ["deliveryModeAuthority"] }
         },
@@ -192,8 +192,8 @@
             "required": ["maxDelegationDepth"]
           },
           "then": {
-            "required": ["delegationAuthority", "codingAgentsScope"],
-            "properties": { "workerMode": { "const": "coding-agents" } }
+            "required": ["delegationAuthority", "codingAgentOrchestratorScope"],
+            "properties": { "workerMode": { "const": "coding-agent-orchestrator" } }
           }
         }
       ],

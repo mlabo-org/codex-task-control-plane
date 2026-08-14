@@ -20,7 +20,7 @@ const translations = {
     inspection: "Inspection", resultAndArtifacts: "Result & artifacts", selectTask: "Select a task", selectTaskHelp: "Choose a task row to inspect its contract and evidence.",
     audit: "Audit", eventTimeline: "Event timeline", newControlRun: "New control run", objective: "Objective", mode: "Mode", maxRounds: "Max round trips",
     controllerThread: "Controller thread ID", cancel: "Cancel", create: "Create", addControlledTask: "Add controlled task", title: "Title", prompt: "Prompt",
-    workingDirectory: "Working directory", thinking: "Thinking", codingScope: "Coding Agents scope", codingScopeHelp: "Required only for Coding Agents workers.",
+    workingDirectory: "Working directory", thinking: "Thinking", codingScope: "CAO scope", codingScopeHelp: "Required only for Coding Agent Orchestrator workers.",
     model: "Model override", authority: "Override authority", criteria: "Acceptance criteria", prepare: "Prepare", simulate: "Simulate", accept: "Accept", continue: "Continue", requestCancel: "Cancel request",
     evidence: "Verification", artifacts: "Artifacts", result: "Result", contract: "Contract", noEvidence: "No verification evidence", noArtifacts: "No artifacts",
     actionCompleted: "Action completed", actionFailed: "Action failed", loadFailed: "Could not load control-plane state"
@@ -36,7 +36,7 @@ const translations = {
     inspection: "詳細", resultAndArtifacts: "結果と成果物", selectTask: "タスクを選択", selectTaskHelp: "行を選ぶと契約と証跡を確認できます。",
     audit: "監査", eventTimeline: "イベント履歴", newControlRun: "新規管制Run", objective: "目的", mode: "モード", maxRounds: "最大往復数",
     controllerThread: "管制スレッドID", cancel: "キャンセル", create: "作成", addControlledTask: "管制タスクを追加", title: "タイトル", prompt: "指示",
-    workingDirectory: "作業ディレクトリ", thinking: "推論深度", codingScope: "Coding Agentsスコープ", codingScopeHelp: "Coding Agentsワーカーの場合のみ必須です。",
+    workingDirectory: "作業ディレクトリ", thinking: "推論深度", codingScope: "CAOスコープ", codingScopeHelp: "Coding Agent Orchestratorワーカーの場合のみ必須です。",
     model: "モデル上書き", authority: "上書き根拠", criteria: "受け入れ条件", prepare: "準備", simulate: "模擬完了", accept: "受理", continue: "継続", requestCancel: "取消要求",
     evidence: "検証証跡", artifacts: "成果物", result: "結果", contract: "契約", noEvidence: "検証証跡なし", noArtifacts: "成果物なし",
     actionCompleted: "操作が完了しました", actionFailed: "操作に失敗しました", loadFailed: "管制状態を読み込めませんでした"
@@ -81,7 +81,7 @@ elements.taskForm.addEventListener("submit", async (event) => {
     runId: state.runId, title: form.get("title"), role: form.get("role"), prompt: form.get("prompt"), cwd: form.get("cwd"),
     environment: form.get("environment"), workerMode: form.get("workerMode"), acceptanceCriteria: lines(form.get("acceptanceCriteria"))
   };
-  for (const key of ["thinking", "model", "profileAuthority", "codingAgentsScope"]) {
+  for (const key of ["thinking", "model", "profileAuthority", "codingAgentOrchestratorScope"]) {
     const value = emptyToNull(form.get(key)); if (value) input[key] = value;
   }
   const result = await action("addTask", input);

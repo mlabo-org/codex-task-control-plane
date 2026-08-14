@@ -1,5 +1,5 @@
 .DS_Store
-.coding-agents/
+.coding-agent-orchestrator/
 node_modules/
 coverage/
 .runtime/

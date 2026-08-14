@@ -152,10 +152,10 @@
         <label class="mlh-field"><span data-i18n="workingDirectory">Working directory</span><input name="cwd" type="text" required></label>
         <div class="mlh-field-row three">
           <label class="mlh-field"><span data-i18n="environment">Environment</span><select name="environment"><option value="auto">Auto</option><option value="local">Local</option><option value="worktree">Worktree</option></select></label>
-          <label class="mlh-field"><span data-i18n="workflow">Workflow</span><select name="workerMode"><option value="direct">Direct</option><option value="coding-agents">Coding Agents</option></select></label>
+          <label class="mlh-field"><span data-i18n="workflow">Workflow</span><select name="workerMode"><option value="direct">Direct</option><option value="coding-agent-orchestrator">Coding Agent Orchestrator (CAO)</option></select></label>
           <label class="mlh-field"><span data-i18n="thinking">Thinking</span><select name="thinking"><option value="">Host default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option><option>ultra</option></select></label>
         </div>
-        <label class="mlh-field"><span data-i18n="codingScope">Coding Agents scope</span><input name="codingAgentsScope" type="text"><small class="mlh-help" data-i18n="codingScopeHelp">Required only for Coding Agents workers.</small></label>
+        <label class="mlh-field"><span data-i18n="codingScope">CAO scope</span><input name="codingAgentOrchestratorScope" type="text"><small class="mlh-help" data-i18n="codingScopeHelp">Required only for Coding Agent Orchestrator workers.</small></label>
         <div class="mlh-field-row"><label class="mlh-field"><span data-i18n="model">Model override</span><input name="model" type="text" placeholder="Host default"></label><label class="mlh-field"><span data-i18n="authority">Override authority</span><input name="profileAuthority" type="text" placeholder="user_request:..."></label></div>
         <label class="mlh-field"><span data-i18n="criteria">Acceptance criteria</span><textarea name="acceptanceCriteria" rows="3" placeholder="One criterion per line"></textarea></label>
         <div class="dialog-actions"><button class="mlh-button is-quiet" value="cancel" type="submit" data-i18n="cancel">Cancel</button><button class="mlh-button is-primary" value="create" type="submit" data-i18n="addTask">Add task</button></div>

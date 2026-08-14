@@ -26,7 +26,7 @@ test("capability inventory covers the complete native task family", () => {
   assert.deepEqual(complete.missingManagement, []);
 });
 
-test("task contracts guard model authority and Coding Agents scope", () => {
+test("task contracts guard model authority and Coding Agent Orchestrator scope", () => {
   const base = {
     title: "Worker",
     prompt: "Complete the slice.",
@@ -38,18 +38,18 @@ test("task contracts guard model authority and Coding Agents scope", () => {
     (error) => error.code === "MODEL_AUTHORITY_REQUIRED"
   );
   assert.throws(
-    () => createTaskRecord({ ...base, workerMode: "coding-agents" }, { id: "task_1", at: "now" }),
-    (error) => error.code === "CODING_AGENTS_SCOPE_REQUIRED"
+    () => createTaskRecord({ ...base, workerMode: "coding-agent-orchestrator" }, { id: "task_1", at: "now" }),
+    (error) => error.code === "CAO_SCOPE_REQUIRED"
   );
   assert.throws(
-    () => createTaskRecord({ ...base, codingAgentsDeliveryMode: "ONE_SHOT_QUALITY" }, { id: "task_1", at: "now" }),
+    () => createTaskRecord({ ...base, codingAgentOrchestratorDeliveryMode: "ONE_SHOT_QUALITY" }, { id: "task_1", at: "now" }),
     (error) => error.code === "ONE_SHOT_AUTHORITY_REQUIRED"
   );
   const task = createTaskRecord(
     {
       ...base,
-      workerMode: "coding-agents",
-      codingAgentsScope: "src and focused tests",
+      workerMode: "coding-agent-orchestrator",
+      codingAgentOrchestratorScope: "src and focused tests",
       model: "gpt-example",
       thinking: "high",
       profileAuthority: "user_request:explicit model choice",
@@ -61,12 +61,12 @@ test("task contracts guard model authority and Coding Agents scope", () => {
   const preparation = buildDispatchPreparation({ id: "run_1" }, task);
   assert.equal(preparation.createThreadTemplate.model, "gpt-example");
   assert.equal(preparation.createThreadTemplate.thinking, "high");
-  assert.match(preparation.createThreadTemplate.prompt, /Coding Agents workflow/);
-  assert.match(preparation.createThreadTemplate.prompt, /\$coding-agents/);
+  assert.match(preparation.createThreadTemplate.prompt, /Coding Agent Orchestrator workflow/);
+  assert.match(preparation.createThreadTemplate.prompt, /\$coding-agent-orchestrator/);
   assert.match(preparation.createThreadTemplate.prompt, /src and focused tests/);
   const directTask = createTaskRecord(base, { id: "task_2", at: "now" });
   const directPrompt = buildWorkerPrompt({ id: "run_1" }, directTask);
-  assert.doesNotMatch(directPrompt, /Coding Agents workflow|\$coding-agents/);
+  assert.doesNotMatch(directPrompt, /Coding Agent Orchestrator workflow|\$coding-agent-orchestrator/);
 });
 
 test("project resolution maps Git to worktree and non-Git to local", () => {

@@ -10,7 +10,7 @@
       "スレッドオーケストレーション",
       "上位管制",
       "create visible Codex tasks",
-      "manage Coding Agents in separate tasks",
+      "manage Coding Agent Orchestrator workers in separate tasks",
       "fork or hand off a Codex task"
     ],
     "primary_route": "Use $control-codex-sessions with the codex_session_control_plane MCP ledger and the native codex_app task-tool family. Prepare each call in the ledger, execute it in the active controller, then record its normalized outcome.",
@@ -34,7 +34,7 @@
       "trigger_phrases": [
         "create multiple Codex tasks",
         "Codexの画面に別スレッドを作る",
-        "run Coding Agents in each task",
+        "run Coding Agent Orchestrator in each task",
         "fork this task",
         "hand off this task"
       ],
@@ -148,7 +148,7 @@
         "queued-thread-binding",
         "observation-and-controller-state",
         "complete-native-management-surface",
-        "coding-agents-worker-boundary",
+        "coding-agent-orchestrator-worker-boundary",
         "atomic-ledger",
         "reader-environment-installation",
         "loopback-dashboard-security",
@@ -286,8 +286,8 @@
         ]
       },
       {
-        "id": "coding-agents-worker-boundary",
-        "description": "A Coding Agents workflow stays inside its visible worker project/worktree and does not become a sibling-task controller.",
+        "id": "coding-agent-orchestrator-worker-boundary",
+        "description": "A Coding Agent Orchestrator workflow stays inside its visible worker project/worktree and does not become a sibling-task controller.",
         "enforcement_points": [
           "scripts/lib/native-thread-tools.mjs",
           "skills/control-codex-sessions/SKILL.md"
