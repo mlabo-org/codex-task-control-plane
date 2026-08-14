@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-thread-orchestration/mcp/control-plane-preflight-input/v1",
+  "title": "control_plane_preflight input",
+  "type": "object",
+  "required": ["cwd", "availableTools"],
+  "properties": {
+    "cwd": { "type": "string", "minLength": 1, "description": "Existing local project directory." },
+    "availableTools": { "type": "array", "uniqueItems": true, "items": { "enum": ["codex_app__list_projects", "codex_app__create_thread", "codex_app__list_threads", "codex_app__wait_threads", "codex_app__read_thread", "codex_app__send_message_to_thread", "codex_app__fork_thread", "codex_app__handoff_thread", "codex_app__get_handoff_status", "codex_app__set_thread_title", "codex_app__set_thread_pinned", "codex_app__set_thread_archived", "codex_app__navigate_to_codex_page"] } }
+  },
+  "additionalProperties": false
+}

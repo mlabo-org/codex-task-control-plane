@@ -1,0 +1,4 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-simulate-task-input/v1", "title": "control_plane_simulate_task input", "type": "object", "required": ["runId", "taskId", "summary"],
+  "properties": { "runId": { "type": "string", "minLength": 1 }, "taskId": { "type": "string", "minLength": 1 }, "summary": { "type": "string", "minLength": 1 }, "artifacts": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }, "verification": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] } }, "additionalProperties": false
+}

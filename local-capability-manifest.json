@@ -1,0 +1,452 @@
+{
+  "manifestVersion": "local-capability-manifest/v1",
+  "publisher": "suzuki-makoto",
+  "packageKind": "plugin",
+  "packageId": "codex-thread-orchestration",
+  "descriptorVersion": "0.2.0",
+  "capabilities": [
+    {
+      "leafId": "control-plane-preflight",
+      "title": "Control Plane Preflight",
+      "description": "Validate one local project directory and report exact native Codex task-tool availability and the host/server ownership boundary.",
+      "executionClass": "server_deterministic",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_preflight"
+      },
+      "authorityRequests": [
+        {
+          "authority": "local-filesystem-read",
+          "reason": "Read metadata for the caller-supplied project directory during validation."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-preflight-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-preflight.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-preflight-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-preflight.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-create-run",
+      "title": "Create Control Run",
+      "description": "Create one durable dry-run or live thread-orchestration run in the control-plane ledger without invoking a native Codex task tool.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_create_run"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the new orchestration run through the configured atomic ledger."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-create-run-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-create-run.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-create-run-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-create-run.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-add-task",
+      "title": "Add Control Task",
+      "description": "Validate and persist one complete visible-worker task contract under an existing control run.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_add_task"
+      },
+      "authorityRequests": [
+        {
+          "authority": "local-filesystem-read",
+          "reason": "Validate the caller-supplied absolute worker project directory."
+        },
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the validated task contract in the configured atomic ledger."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-add-task-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-add-task.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-add-task-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-add-task.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-prepare-dispatch",
+      "title": "Prepare Task Dispatch",
+      "description": "Persist a dispatch intent and return the exact codex_app__list_projects host call needed before visible task creation.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_prepare_dispatch"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Record the task dispatch intent and project-resolution phase."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-prepare-dispatch-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-prepare-dispatch.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-prepare-dispatch-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-prepare-dispatch.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-resolve-project",
+      "title": "Resolve Dispatch Project",
+      "description": "Import one exact native list_projects record, enforce project and live-authority rules, and return a create_thread intent for host execution.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_resolve_project"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the resolved project, target environment, and confirmed dispatch intent."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-resolve-project-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-resolve-project.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-resolve-project-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-resolve-project.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-record-thread-launch",
+      "title": "Record Thread Launch",
+      "description": "Import the actual create_thread or fork_thread result, retain queued client provenance, and persist the truthful thread/task binding state.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_record_thread_launch"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the actual native launch result and resulting task/thread state."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-record-thread-launch-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-record-thread-launch.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-record-thread-launch-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-record-thread-launch.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-prepare-operation",
+      "title": "Prepare Native Task Operation",
+      "description": "Validate and persist one post-launch task-operation intent, returning the exact native codex_app tool and arguments for the active host.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_prepare_operation"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the validated native-operation intent and any child task contract."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-prepare-operation-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-prepare-operation.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-prepare-operation-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-prepare-operation.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-complete-operation",
+      "title": "Complete Native Task Operation",
+      "description": "Import an actual native task-tool result, update the addressed operation and task state, and resolve queued list bindings from supported evidence.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_complete_operation"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the imported native result and its normalized operation/task state."
+        },
+        {
+          "authority": "local-git-metadata-read",
+          "reason": "Resolve canonical Git common-directory identity only when a queued worktree list result has no projectId."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-complete-operation-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-complete-operation.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-complete-operation-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-complete-operation.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-decide",
+      "title": "Record Controller Decision",
+      "description": "Persist the controller's accept, continue, or fail decision for one task currently in review.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_decide"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the controller decision, message provenance, and resulting task/run state."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-decide-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-decide.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-decide-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-decide.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-request-cancel",
+      "title": "Request Task Cancellation",
+      "description": "Record a cancellation intent and truthfully report whether the user must stop the visible Codex task because no native stop tool exists.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_request_cancel"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist cancellation intent and the resulting task/message state; this does not interrupt a native task."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-request-cancel-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-request-cancel.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-request-cancel-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-request-cancel.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-simulate-task",
+      "title": "Simulate Dry-Run Task",
+      "description": "Complete one dry-run task simulation in controller review with a typed summary, artifact references, and verification evidence.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_simulate_task"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-write",
+          "reason": "Persist the simulated dry-run result and controller-review state."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-simulate-task-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-simulate-task.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-simulate-task-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-simulate-task.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-snapshot",
+      "title": "Read Control Plane Snapshot",
+      "description": "Return the complete durable ledger or one exact orchestration run, including tasks, bindings, operations, messages, decisions, and events.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_snapshot"
+      },
+      "authorityRequests": [
+        {
+          "authority": "control-plane-ledger-read",
+          "reason": "Read the configured durable control-plane ledger."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-snapshot-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-snapshot.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-snapshot-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-snapshot.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-plane-dashboard-start",
+      "title": "Start Control Plane Dashboard",
+      "description": "Start or reuse the loopback-only bilingual ledger-and-intent dashboard and return its local URL.",
+      "executionClass": "server_stateful",
+      "runtimeBinding": {
+        "kind": "mcp_tool",
+        "mcpServer": "codex_session_control_plane",
+        "tool": "control_plane_dashboard_start"
+      },
+      "authorityRequests": [
+        {
+          "authority": "loopback-network-listen",
+          "reason": "Bind the dashboard HTTP server only to localhost or an operating-system loopback address."
+        },
+        {
+          "authority": "control-plane-ledger-read-write",
+          "reason": "Serve ledger snapshots and token-guarded intent actions through the local dashboard."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-dashboard-start-input/v1",
+        "path": "schemas/local-capability/mcp/control-plane-dashboard-start.input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/mcp/control-plane-dashboard-start-output/v1",
+        "path": "schemas/local-capability/mcp/control-plane-dashboard-start.output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    },
+    {
+      "leafId": "control-codex-sessions",
+      "title": "Control Codex Sessions",
+      "description": "Coordinate a complete user-visible Codex task run by sequencing the control-plane ledger MCP with native task tools executed only by the active Codex host.",
+      "executionClass": "host_coordinator",
+      "runtimeBinding": {
+        "kind": "host_coordinator",
+        "instruction": "At the active Codex host, apply the public control-codex-sessions contract to this structured request. Use codex_session_control_plane only for durable ledger state and prepared/imported intents; execute every returned native codex_app task call in the host under current user authority, then record the actual result. Never claim the MCP server executed a native task tool. Return the complete controller handoff required by the output schema."
+      },
+      "authorityRequests": [
+        {
+          "authority": "codex-visible-task-read",
+          "reason": "Resolve projects and read/list/wait for the exact user-visible Codex tasks in the declared run."
+        },
+        {
+          "authority": "codex-visible-task-mutate",
+          "reason": "Create, message, fork, hand off, title, pin, archive, or navigate tasks only when the current request explicitly authorizes the corresponding live action."
+        },
+        {
+          "authority": "control-plane-ledger-read-write",
+          "reason": "Create, read, and update the declared run's durable control-plane state through its MCP leaves."
+        },
+        {
+          "authority": "loopback-network-listen",
+          "reason": "Start the optional dashboard only when startDashboard is requested."
+        }
+      ],
+      "artifactRoots": [],
+      "inputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/control-codex-sessions-input/v1",
+        "path": "schemas/local-capability/coordinator/control-codex-sessions-input.schema.json"
+      },
+      "outputSchema": {
+        "schemaVersion": "local-capability-schema/v1",
+        "schemaId": "codex-thread-orchestration/control-codex-sessions-output/v1",
+        "path": "schemas/local-capability/coordinator/control-codex-sessions-output.schema.json"
+      },
+      "inputPorts": [],
+      "outputPorts": []
+    }
+  ]
+}

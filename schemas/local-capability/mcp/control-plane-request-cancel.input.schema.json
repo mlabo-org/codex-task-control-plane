@@ -1,0 +1,4 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-request-cancel-input/v1", "title": "control_plane_request_cancel input", "type": "object", "required": ["runId", "taskId", "reason"],
+  "properties": { "runId": { "type": "string", "minLength": 1 }, "taskId": { "type": "string", "minLength": 1 }, "reason": { "type": "string", "minLength": 1 } }, "additionalProperties": false
+}

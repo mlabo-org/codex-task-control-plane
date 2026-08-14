@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-thread-orchestration/mcp/control-plane-prepare-dispatch-input/v1",
+  "title": "control_plane_prepare_dispatch input", "type": "object", "required": ["runId", "taskId"],
+  "properties": { "runId": { "type": "string", "minLength": 1 }, "taskId": { "type": "string", "minLength": 1 } }, "additionalProperties": false
+}

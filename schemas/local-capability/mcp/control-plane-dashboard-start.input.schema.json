@@ -1,0 +1,4 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-dashboard-start-input/v1", "title": "control_plane_dashboard_start input", "type": "object",
+  "properties": { "port": { "type": "integer", "minimum": 0, "maximum": 65535, "default": 0 } }, "additionalProperties": false
+}

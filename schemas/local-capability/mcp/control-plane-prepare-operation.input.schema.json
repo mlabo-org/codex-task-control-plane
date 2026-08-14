@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-thread-orchestration/mcp/control-plane-prepare-operation-input/v1",
+  "title": "control_plane_prepare_operation input", "type": "object", "required": ["runId", "tool"],
+  "properties": {
+    "runId": { "type": "string", "minLength": 1 },
+    "tool": { "enum": ["codex_app__list_threads", "codex_app__wait_threads", "codex_app__read_thread", "codex_app__send_message_to_thread", "codex_app__fork_thread", "codex_app__handoff_thread", "codex_app__get_handoff_status", "codex_app__set_thread_title", "codex_app__set_thread_pinned", "codex_app__set_thread_archived", "codex_app__navigate_to_codex_page"] },
+    "input": { "type": "object", "additionalProperties": true, "description": "Tool-specific semantic input validated by the operation builder." },
+    "confirmLiveAction": { "type": "boolean", "default": false }
+  }, "additionalProperties": false
+}

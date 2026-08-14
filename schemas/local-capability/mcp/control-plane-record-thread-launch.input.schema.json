@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-thread-orchestration/mcp/control-plane-record-thread-launch-input/v1",
+  "title": "control_plane_record_thread_launch input", "type": "object", "required": ["runId", "operationId"],
+  "properties": { "runId": { "$ref": "#/$defs/text" }, "operationId": { "$ref": "#/$defs/text" }, "result": { "type": "object", "additionalProperties": true }, "error": { "type": "object", "additionalProperties": true } }, "$defs": { "text": { "type": "string", "minLength": 1 } }, "additionalProperties": false
+}

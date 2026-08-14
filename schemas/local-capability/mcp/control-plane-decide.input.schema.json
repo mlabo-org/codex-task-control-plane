@@ -1,0 +1,4 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-decide-input/v1", "title": "control_plane_decide input", "type": "object", "required": ["runId", "taskId", "decision"],
+  "properties": { "runId": { "type": "string", "minLength": 1 }, "taskId": { "type": "string", "minLength": 1 }, "decision": { "enum": ["accept", "continue", "fail"] }, "note": { "type": "string", "default": "" } }, "additionalProperties": false
+}

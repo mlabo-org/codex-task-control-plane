@@ -1,0 +1,4 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-request-cancel-output/v1", "title": "control_plane_request_cancel output", "type": "object", "required": ["task", "humanStopRequired", "threadId", "clientThreadId", "guidance"],
+  "properties": { "task": { "type": "object", "required": ["id", "status"], "properties": { "id": { "type": "string", "minLength": 1 }, "status": { "enum": ["cancel_requested", "cancelled"] } }, "additionalProperties": true }, "humanStopRequired": { "type": "boolean" }, "threadId": { "type": ["string", "null"] }, "clientThreadId": { "type": ["string", "null"] }, "guidance": { "type": "string", "minLength": 1 } }, "additionalProperties": false
+}

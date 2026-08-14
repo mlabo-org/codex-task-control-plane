@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-thread-orchestration/mcp/control-plane-complete-operation-input/v1",
+  "title": "control_plane_complete_operation input", "type": "object", "required": ["runId", "operationId", "result"],
+  "properties": { "runId": { "type": "string", "minLength": 1 }, "operationId": { "type": "string", "minLength": 1 }, "result": { "type": "object", "additionalProperties": true, "description": "Normalized result returned by the prepared native task operation." } }, "additionalProperties": false
+}
