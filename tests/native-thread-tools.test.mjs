@@ -63,6 +63,8 @@ test("task contracts guard model authority and Coding Agent Orchestrator scope",
   assert.equal(preparation.createThreadTemplate.thinking, "high");
   assert.match(preparation.createThreadTemplate.prompt, /Coding Agent Orchestrator workflow/);
   assert.match(preparation.createThreadTemplate.prompt, /\$coding-agent-orchestrator/);
+  assert.match(preparation.createThreadTemplate.prompt, /\.CAO\/.*legacy `\.coding-agents\/` state/);
+  assert.doesNotMatch(preparation.createThreadTemplate.prompt, /\.coding-agent-orchestrator/);
   assert.match(preparation.createThreadTemplate.prompt, /src and focused tests/);
   const directTask = createTaskRecord(base, { id: "task_2", at: "now" });
   const directPrompt = buildWorkerPrompt({ id: "run_1" }, directTask);

@@ -1,6 +1,6 @@
 {
   "name": "codex-thread-orchestration",
-  "version": "0.2.0+codex.20260814165137",
+  "version": "0.2.0+codex.20260815082313",
   "description": "Orchestrate user-visible Codex tasks with native thread tools, durable state, controller decisions, and optional Coding Agent Orchestrator (CAO) workers.",
   "author": {
     "name": "Makoto Suzuki"

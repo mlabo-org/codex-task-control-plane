@@ -494,7 +494,7 @@ export function buildWorkerPrompt(run, task) {
       "Coding Agent Orchestrator workflow:",
       "- Invoke the installed `$coding-agent-orchestrator` skill for this task; the user explicitly selected it through the controller.",
       "- Treat this thread's project/worktree root as the Coding Agent Orchestrator jobsite.",
-      "- Inspect existing `.coding-agent-orchestrator` continuity state and resume related state semantically.",
+      "- Inspect existing `.CAO/` workflow state; when it is absent, accept legacy `.coding-agents/` state and resume related state semantically.",
       `- Keep scope to: ${task.workflow.codingAgentOrchestratorScope}.`,
       `- Use delivery mode ${task.workflow.deliveryMode}.`,
       `- Maximum internal subagent delegation depth: ${task.workflow.maxDelegationDepth}.`,
