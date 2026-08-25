@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-integrate-settlement-input/v1",
+  "title": "control_plane_integrate_settlement input",
+  "type": "object",
+  "required": ["runId", "taskId"],
+  "properties": {
+    "runId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "commitMessage": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

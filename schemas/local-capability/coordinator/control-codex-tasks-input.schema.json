@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "codex-task-control-plane/control-codex-tasks-input/v1",
-  "title": "Control Codex Sessions coordinator input",
+  "title": "Control Codex Tasks coordinator input",
   "description": "A complete host-coordination request for one durable user-visible Codex task-control run.",
   "type": "object",
   "required": [
@@ -164,44 +164,27 @@
         "environment": {
           "type": "string",
           "enum": [
-            "auto",
             "local",
             "worktree"
           ],
-          "default": "auto"
+          "default": "local"
         },
-        "startingState": {
-          "oneOf": [
-            {
-              "type": "object",
-              "required": [
-                "type"
-              ],
-              "properties": {
-                "type": {
-                  "const": "working-tree"
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "required": [
-                "type",
-                "branchName"
-              ],
-              "properties": {
-                "type": {
-                  "const": "branch"
-                },
-                "branchName": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
+        "accessMode": {
+          "type": "string",
+          "enum": ["read", "write"],
+          "default": "write"
+        },
+        "integrationTargetBranch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "worktreePurpose": {
+          "type": "string",
+          "enum": ["same_repo_parallel_write", "destructive_experiment", "explicit_user_isolation"]
+        },
+        "worktreeLifecycleAuthority": {
+          "type": "string",
+          "pattern": "^user_request:.+"
         },
         "stateControl": {
           "type": "string",

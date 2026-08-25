@@ -24,6 +24,7 @@ const requiredFiles = [
   "scripts/install-plugin.mjs",
   "scripts/lib/control-plane.mjs",
   "scripts/lib/dashboard-server.mjs",
+  "scripts/lib/git-settlement.mjs",
   "scripts/lib/ledger.mjs",
   "scripts/lib/native-thread-tools.mjs",
   "scripts/lib/plugin-installer.mjs",
@@ -40,6 +41,7 @@ const requiredFiles = [
   "tests/ledger.test.mjs",
   "tests/installer.test.mjs",
   "tests/mcp.test.mjs",
+  "tests/settlement.test.mjs",
   "tests/state-machine.test.mjs",
   "tests/ui-contract.test.mjs"
 ];
@@ -136,6 +138,9 @@ for (const tool of [
   "control_plane_request_cancel",
   "control_plane_simulate_task",
   "control_plane_snapshot",
+  "control_plane_reconcile",
+  "control_plane_integrate_settlement",
+  "control_plane_cleanup_settlement",
   "control_plane_dashboard_start"
 ]) {
   assert.match(mcpSource, new RegExp(escapeRegex(tool)), `${tool} must be exposed by MCP`);

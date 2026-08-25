@@ -114,6 +114,8 @@ test("native launch, observation, and controller acceptance complete one visible
 test("queued worktree binding is exact and cancellation remains truthful", async (context) => {
   const root = await tempRoot(context, "thread-control-queued-");
   const worktreeRoot = path.join(root, ".codex-worktrees", "thread-queued-1");
+  await initializeGitRepository(root);
+  createGitWorktree(root, worktreeRoot, "thread-queued-1");
   const plane = new ControlPlane({ ledger: new Ledger(path.join(root, "ledger.json")) });
   const run = await plane.createRun({ objective: "Queue a worktree worker", executionMode: "live" });
   const task = await plane.addTask({
@@ -426,6 +428,8 @@ test("queued worktree binding with null projectId requires canonical Git common-
   });
   assert.equal(bound.operation.result.bindingCount, 1);
   assert.equal(bound.tasks[0].threadId, "thread-null-project-id");
+  assert.equal(bound.tasks[0].worktree.branchAtBinding, "refs/heads/thread-null-project-id");
+  assert.match(bound.tasks[0].worktree.headAtBinding, /^[0-9a-f]{40}$/);
   assert.equal((await plane.snapshot({ runId: run.id })).threads["thread-null-project-id"].runtimeCwd, worktreeRoot);
 });
 

@@ -4,6 +4,6 @@
   "title": "control_plane_cleanup_settlement input",
   "type": "object",
   "required": ["runId", "taskId"],
-  "properties": { "runId": { "type": "string", "minLength": 1 }, "taskId": { "type": "string", "minLength": 1 }, "force": { "type": "boolean", "default": false } },
+  "properties": { "runId": { "type": "string", "minLength": 1 }, "taskId": { "type": "string", "minLength": 1 } },
   "additionalProperties": false
 }

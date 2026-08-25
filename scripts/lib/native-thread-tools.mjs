@@ -121,6 +121,12 @@ export function validateTaskContract(input) {
     throw contractError("INVALID_ACCESS_MODE", `Unsupported access mode: ${accessMode}`);
   }
   if (environment === "worktree") {
+    if (accessMode !== "write") {
+      throw contractError(
+        "WORKTREE_WRITE_ACCESS_REQUIRED",
+        "managed worktree tasks require accessMode: write"
+      );
+    }
     if (!ALLOWED_WORKTREE_PURPOSES.has(input.worktreePurpose)) {
       throw contractError(
         "WORKTREE_PURPOSE_REQUIRED",
@@ -544,6 +550,9 @@ export function isUserAuthority(value) {
 export function validateWorktreeAdmission(task, availableTools = []) {
   const target = task?.target || task || {};
   if (target.environment !== "worktree") return true;
+  if (target.accessMode !== "write") {
+    throw contractError("WORKTREE_WRITE_ACCESS_REQUIRED", "worktree mode requires accessMode: write");
+  }
   if (!ALLOWED_WORKTREE_PURPOSES.has(target.worktreePurpose)) {
     throw contractError("WORKTREE_PURPOSE_REQUIRED", "worktreePurpose is required for worktree mode");
   }

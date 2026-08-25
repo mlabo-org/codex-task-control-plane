@@ -207,24 +207,22 @@ const tools = new Map([
     }
   ],
   [
-    "control_plane_record_settlement",
+    "control_plane_integrate_settlement",
     {
-      description: "Record verified settlement evidence and keep managed worktree tasks nonterminal until cleanup_verified has a cleanup receipt.",
+      description: "Integrate the machine-captured accepted candidate from confirmed Local state into the exact target branch using measured history topology, exact-path stash preservation when required, and a verified immutable adoption receipt.",
       inputSchema: objectSchema({
-        runId: { type: "string" }, taskId: { type: "string" }, phase: { type: "string" },
-        adoptionReceipt: openObject("Machine-generated adoption receipt."),
-        cleanupReceipt: openObject("Machine-generated cleanup receipt."),
-        blocker: openObject("Structured nonterminal blocker."), runtimeCwd: { type: "string" },
-        headAtReview: { type: "string" }, branchAtReview: nullableString(), candidateFingerprint: { type: "string" }
-      }, ["runId", "taskId", "phase"]),
-      handler: (args) => controlPlane.recordSettlement(args)
+        runId: { type: "string" },
+        taskId: { type: "string" },
+        commitMessage: { type: "string" }
+      }, ["runId", "taskId"]),
+      handler: (args) => controlPlane.integrateSettlement(args)
     }
   ],
   [
     "control_plane_cleanup_settlement",
     {
-      description: "Acquire the per-repository lock and remove only the exact recorded managed worktree, then record post-state cleanup evidence.",
-      inputSchema: objectSchema({ runId: { type: "string" }, taskId: { type: "string" }, force: { type: "boolean", default: false } }, ["runId", "taskId"]),
+      description: "After verified adoption or explicit discard plus native unpin/archive receipts, acquire the repository lock, remove only the exact owned worktree and temporary branch with decision-derived force policy, and record physical post-state evidence.",
+      inputSchema: objectSchema({ runId: { type: "string" }, taskId: { type: "string" } }, ["runId", "taskId"]),
       handler: (args) => controlPlane.cleanupSettlement(args)
     }
   ],
@@ -291,12 +289,12 @@ function objectSchema(properties, required = []) {
   return { type: "object", additionalProperties: false, properties, required };
 }
 
-function openObject(description) {
-  return { type: "object", additionalProperties: true, description };
-}
-
 function nullableString() {
   return { type: ["string", "null"] };
+}
+
+function openObject(description) {
+  return { type: "object", additionalProperties: true, description };
 }
 
 function stringArray() {

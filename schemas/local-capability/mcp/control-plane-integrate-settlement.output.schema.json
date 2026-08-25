@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-integrate-settlement-output/v1",
+  "title": "control_plane_integrate_settlement output",
+  "$ref": "../../run.schema.json#/$defs/task"
+}

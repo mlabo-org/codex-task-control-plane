@@ -45,7 +45,7 @@ test("MCP exposes the complete ledger/intent lifecycle and creates a dry-run", a
     "control_plane_simulate_task",
     "control_plane_snapshot",
     "control_plane_reconcile",
-    "control_plane_record_settlement",
+    "control_plane_integrate_settlement",
     "control_plane_cleanup_settlement",
     "control_plane_dashboard_start"
   ]);

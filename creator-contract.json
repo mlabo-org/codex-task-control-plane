@@ -110,7 +110,7 @@
     },
     {
       "name": "controller acceptance",
-      "description": "Auditable adopt, continue, discard, and cancellation-intent decisions without worker self-acceptance; managed worktrees remain nonterminal until settlement receipts pass."
+      "description": "Auditable adopt, continue, discard, and cancellation-intent decisions without worker self-acceptance; adoption receipts include source-selected Git topology, exact-path stash lifecycle when used, verified target content, and managed worktrees remain nonterminal until physical cleanup passes."
     },
     {
       "name": "loopback dashboard",

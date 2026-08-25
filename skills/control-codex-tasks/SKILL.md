@@ -75,6 +75,8 @@ When creation returns only `clientThreadId`:
 
 `clientThreadId` remains launch provenance while provisioning but is not list-match evidence because current `list_threads` entries do not expose it. The displayed title may truncate after the complete identity marker, so do not invent a full title. No match leaves the task provisioning; multiple exact environment-specific matches fail closed. Do not bind by recency, a vague title fragment, a guessed ID, fabricated `clientThreadId`/full-title fields, or project label.
 
+Immediately after a worktree task binds to one exact native thread/runtime path, prepare `codex_app__set_thread_pinned` with `pinned: true`, call it, and record the successful result before treating the worktree as safe for execution or review. Keep it pinned until verified adoption or explicit discard reaches the native cleanup boundary.
+
 ## Observe and decide
 
 Prefer one bounded `codex_app__wait_threads` call over repeated reads. Prepare it through `control_plane_prepare_operation`; one call may contain one to eight task IDs. Use each task's recorded cursor as `afterCursor`. A timeout is a healthy snapshot, not a failure.
@@ -84,6 +86,8 @@ Normalize each returned task into one of: `running`, `idle`, `completed`, `revie
 Use `codex_app__read_thread` only when the wait snapshot lacks result detail needed for the current decision. Prepare and record it through the same two MCP calls. Normalize only the useful result summary, artifacts, verification, blocker, error, and cursor; do not copy unrelated private history into the ledger.
 
 A completed worker moves to controller review. Use `control_plane_decide` with `adopt`, `continue`, or `discard`. A worker result never completes a worktree-backed task. Adoption requires controller-owned handoff, exact target-branch convergence, and cleanup receipts; discard requires deliberate recorded authority and cleanup receipts. `continue` leaves the same visible task nonterminal. Local tasks that do not require settlement may complete after the ordinary controller decision. Reconcile any pending, blocked, conflicted, or orphan-recovery settlement before allowing task or run completion.
+
+For an adopted worktree, use the source-owned settlement sequence: capture the candidate, confirm the current native location, perform one Handoff toward Local when required, confirm the authoritative Local location, call `control_plane_integrate_settlement`, record native unpin and archive results, then call `control_plane_cleanup_settlement`. The executable Git settlement module owns topology analysis, least-destructive history selection, exact-path stash transactions when required, candidate-content verification, and immutable receipts. Do not replace it with caller-authored Git commands or free-form proof. A conflict, overlapping target change, ambiguous branch, unresolved stash, or missing physical cleanup fact remains nonterminal.
 
 ## Native operation matrix
 

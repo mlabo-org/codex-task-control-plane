@@ -74,6 +74,9 @@
         "target",
         "profile",
         "workflow",
+        "git",
+        "worktree",
+        "settlement",
         "acceptanceCriteria",
         "roundTrips",
         "createdAt",
@@ -162,7 +165,7 @@
     },
     "settlement": {
       "type": "object",
-      "required": ["required", "decision", "phase", "terminalStatus", "operationIds"],
+      "required": ["required", "decision", "phase", "terminalStatus", "operationIds", "adoptionReceipt", "unpinReceipt", "archiveReceipt", "cleanupReceipt", "blocker"],
       "properties": {
         "required": { "type": "boolean" },
         "decision": { "enum": ["adopt", "continue", "discard", null] },
@@ -170,6 +173,8 @@
         "terminalStatus": { "$ref": "#/$defs/nullableString" },
         "operationIds": { "type": "array", "items": { "type": "string" } },
         "adoptionReceipt": { "type": ["object", "null"] },
+        "unpinReceipt": { "type": ["object", "null"] },
+        "archiveReceipt": { "type": ["object", "null"] },
         "cleanupReceipt": { "type": ["object", "null"] },
         "blocker": { "type": ["object", "null"] }
       }

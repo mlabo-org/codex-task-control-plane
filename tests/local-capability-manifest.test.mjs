@@ -104,7 +104,7 @@ test("manifest schemas and artifact declarations are package-contained and leaf-
       if (schema.type === "object") {
         assert.equal(schema.additionalProperties, false);
         assert.ok(Object.keys(schema.properties || {}).length > 0);
-      } else {
+      } else if (typeof schema.$ref !== "string") {
         assert.ok(Object.keys(schema.$defs || {}).length > 0);
       }
       if (source === capability.outputSchema) {

@@ -50,4 +50,6 @@ test("dashboard does not infer worktree completion without cleanup evidence", as
   assert.match(app, /data-action="adopt"/);
   assert.match(app, /data-action="continue"/);
   assert.match(app, /data-action="discard"/);
+  assert.match(app, /data-action="integrate"/);
+  assert.match(app, /data-action="cleanup"/);
 });

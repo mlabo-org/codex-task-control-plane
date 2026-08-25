@@ -78,8 +78,9 @@ The host may expose different capabilities across Codex versions. `control_plane
 4. Prepare dispatch. The controller calls `list_projects`, resolves one exact path, then calls the returned `create_thread` intent.
 5. Record the launch. Missing environment means Local; a Git project does not imply a worktree. Worktree creation requires explicit lifecycle authority and exact settlement inputs.
 6. Wait in bounded groups, read only when needed, and record normalized observations.
-7. Adopt, continue, or discard through a controller decision. Worktree tasks remain nonterminal until exact target-branch convergence and cleanup receipts pass; reconcile pending or blocked settlement before run completion.
-8. Prepare every later management call through the same ledger, execute it with the native tool, and record the outcome.
+7. Adopt, continue, or discard through a controller decision. An adopted worktree is captured, handed back to the authoritative Local checkout, and integrated by measured Git topology: already-contained/fast-forward first, otherwise a source-selected rebase plus fast-forward, merge, or detached linear cherry-pick. Exact-path stashes preserve accepted and unrelated dirty state only when needed.
+8. Verify the target commit and candidate content, record native unpin/archive, then remove and verify only the exact owned worktree/path/temporary branch. Worktree tasks remain nonterminal until adoption-or-discard and cleanup receipts pass.
+9. Prepare every later management call through the same ledger, execute it with the native tool, and record the outcome.
 
 Model or thinking overrides are omitted by default. They are accepted only when the current user explicitly requested them and the task records a `user_request:...` authority. Live mutations similarly require an explicit confirmation at the control-plane boundary.
 
@@ -203,8 +204,9 @@ Codex のバージョンによって公開ツールは変わり得ます。ラ�
 4. dispatch を準備し、管制役が `list_projects` を呼び、パスが完全一致するプロジェクトを選び、返された `create_thread` 意図を実行します。
 5. 起動結果を記録します。環境未指定は Local であり、Git プロジェクトだから worktree になることはありません。worktree には明示的なライフサイクル権限と決済情報が必要です。
 6. task を最大8本ずつ待機し、必要な場合だけ詳細を読み、正規化した観測結果を台帳へ保存します。
-7. 管制役が採用、同一 task で継続、破棄のいずれかを決定します。worktree task は対象ブランチへの収束と cleanup 証跡が揃うまで非終端です。
-8. 分岐、引継ぎ、名前、ピン、アーカイブ、画面移動も、同じく「意図準備→純正ツール実行→結果記録」で扱います。
+7. 管制役が採用、同一 task で継続、破棄のいずれかを決定します。採用したworktreeは候補を機械記録し、正規LocalへHandoffしたうえで、実測したGit topologyから既収録/fast-forwardを最優先に、必要ならrebase＋fast-forward、merge、detached線形候補のcherry-pickをsourceが選択します。stashは採用内容または無関係なdirty stateを守るexact-path処理として必要時だけ使います。
+8. target commitと候補内容を検証し、純正unpin/archiveを記録してから、所有確認済みのworktree・path・一時branchだけを削除して物理的消滅を証明します。採用または破棄とcleanupの機械証跡が揃うまでworktree taskは非終端です。
+9. 分岐、引継ぎ、名前、ピン、アーカイブ、画面移動も、同じく「意図準備→純正ツール実行→結果記録」で扱います。
 
 モデルや推論深度は既定で上書きしません。現在のユーザーが明示し、task に `user_request:...` の根拠が記録された場合だけ上書きします。ライブ変更も同様に、管制面で明示確認を要求します。
 

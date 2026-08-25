@@ -140,6 +140,10 @@ async function dispatchAction(controlPlane, body) {
         throw error;
       }
       return controlPlane.reconcile(body.input || {});
+    case "integrateSettlement":
+      return controlPlane.integrateSettlement(body.input || {});
+    case "cleanupSettlement":
+      return controlPlane.cleanupSettlement(body.input || {});
     case "requestCancel":
       return controlPlane.requestCancel(body.input || {});
     case "simulateTask":

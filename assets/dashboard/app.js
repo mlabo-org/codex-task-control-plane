@@ -23,7 +23,7 @@ const translations = {
     workingDirectory: "Working directory", codingScope: "CAO state scope", codingScopeHelp: "Optional; use only when Codex Activity Oversight state control is explicitly requested.",
     model: "Model override", authority: "Override authority", criteria: "Acceptance criteria", prepare: "Prepare", simulate: "Simulate", adopt: "Adopt", discard: "Discard", continue: "Continue", requestCancel: "Cancel request",
     evidence: "Verification", artifacts: "Artifacts", result: "Result", contract: "Contract", noEvidence: "No verification evidence", noArtifacts: "No artifacts",
-    reconcile: "Reconcile", actionCompleted: "Action completed", actionFailed: "Action failed", loadFailed: "Could not load control-plane state"
+    reconcile: "Reconcile", integrate: "Integrate", cleanup: "Clean up", actionCompleted: "Action completed", actionFailed: "Action failed", loadFailed: "Could not load control-plane state"
   },
   ja: {
     upperControl: "上位管制", newRun: "新規Run", runs: "Run一覧", connecting: "接続中", connected: "接続済み", disconnected: "切断",
@@ -39,7 +39,7 @@ const translations = {
     workingDirectory: "作業ディレクトリ", codingScope: "CAO状態スコープ", codingScopeHelp: "Codex Activity Oversightの状態管制を明示的に要求した場合だけ任意指定します。",
     model: "モデル上書き", authority: "上書き根拠", criteria: "受け入れ条件", prepare: "準備", simulate: "模擬完了", adopt: "採用", discard: "破棄", continue: "継続", requestCancel: "取消要求",
     evidence: "検証証跡", artifacts: "成果物", result: "結果", contract: "契約", noEvidence: "検証証跡なし", noArtifacts: "成果物なし",
-    reconcile: "整合", actionCompleted: "操作が完了しました", actionFailed: "操作に失敗しました", loadFailed: "管制状態を読み込めませんでした"
+    reconcile: "整合", integrate: "統合", cleanup: "後片付け", actionCompleted: "操作が完了しました", actionFailed: "操作に失敗しました", loadFailed: "管制状態を読み込めませんでした"
   }
 };
 
@@ -98,6 +98,8 @@ elements.taskRows.addEventListener("click", async (event) => {
   if (command === "prepare") await action("prepareDispatch", { runId: state.runId, taskId: task.id });
   if (command === "simulate") await action("simulateTask", { runId: state.runId, taskId: task.id, summary: "Dashboard dry-run simulation", verification: ["No native task call was executed"], artifacts: [] });
   if (["adopt", "continue", "discard"].includes(command)) await action("decide", { runId: state.runId, taskId: task.id, decision: command, note: `${command} from dashboard` });
+  if (command === "integrate") await action("integrateSettlement", { runId: state.runId, taskId: task.id });
+  if (command === "cleanup") await action("cleanupSettlement", { runId: state.runId, taskId: task.id });
   if (command === "reconcile") await action("reconcile", { runId: state.runId, taskId: task.id });
   if (command === "cancel") await action("requestCancel", { runId: state.runId, taskId: task.id, reason: "Cancellation requested from dashboard" });
   await refresh();
@@ -164,7 +166,7 @@ function renderOperations() {
 function renderInspector() {
   const task = selectedTask(); if (!task) { elements.inspector.innerHTML = `<div class="mlh-empty"><strong>${t("selectTask")}</strong><span>${t("selectTaskHelp")}</span></div>`; return; }
   const settlement = task.settlement || {}; const worktree = task.worktree || {}; const git = task.git || {};
-  elements.inspector.innerHTML = `<div class="inspector-block"><h3>${t("contract")}</h3><p>${escapeHtml(task.prompt)}</p><code>${escapeHtml(task.cwd)}</code><p>${t("accessMode")}: ${escapeHtml(task.target?.accessMode || git.accessMode || "write")} · ${t("targetBranch")}: ${escapeHtml(task.target?.integrationTargetBranch || git.targetBranch || "—")}</p><p>${t("repository")}: <code>${escapeHtml(git.commonDirectory || task.project?.canonicalRepository || "—")}</code></p><p>${t("purpose")}: ${escapeHtml(worktree.purpose || "—")} / ${escapeHtml(worktree.authority || "—")}</p></div><div class="inspector-block"><h3>${t("settlement")}</h3><p>${escapeHtml(settlement.phase || (settlement.required ? "awaiting_decision" : "not_required"))}</p><p>${t("runtimePath")}: <code>${escapeHtml(worktree.runtimeCwd || task.thread?.runtimeCwd || "—")}</code></p><p>${t("pin")}: ${escapeHtml(String(worktree.pinned ?? task.thread?.pinned ?? false))}</p><p>${t("receipts")}: adoption=${escapeHtml(settlement.adoptionReceipt?.id || settlement.adoptionReceipt?.commit || "—")}; cleanup=${escapeHtml(settlement.cleanupReceipt?.mode || settlement.cleanupReceipt?.id || "—")}</p><p>${escapeHtml(settlement.blocker || task.blocker || "")}</p></div><div class="inspector-block"><h3>${t("result")}</h3><p>${escapeHtml(task.result?.summary || "—")}</p></div><div class="inspector-block"><h3>${t("evidence")}</h3>${renderList(task.verification, t("noEvidence"))}</div><div class="inspector-block"><h3>${t("artifacts")}</h3>${renderList(task.artifacts, t("noArtifacts"))}</div>`;
+  elements.inspector.innerHTML = `<div class="inspector-block"><h3>${t("contract")}</h3><p>${escapeHtml(task.prompt)}</p><code>${escapeHtml(task.cwd)}</code><p>${t("accessMode")}: ${escapeHtml(task.target?.accessMode || git.accessMode || "write")} · ${t("targetBranch")}: ${escapeHtml(task.target?.integrationTargetBranch || git.targetBranch || "—")}</p><p>${t("repository")}: <code>${escapeHtml(git.commonDirectory || task.project?.canonicalRepository || "—")}</code></p><p>${t("purpose")}: ${escapeHtml(worktree.purpose || "—")} / ${escapeHtml(worktree.authority || "—")}</p></div><div class="inspector-block"><h3>${t("settlement")}</h3><p>${escapeHtml(settlement.phase || (settlement.required ? "awaiting_decision" : "not_required"))}</p><p>${t("runtimePath")}: <code>${escapeHtml(worktree.runtimeCwd || task.thread?.runtimeCwd || "—")}</code></p><p>${t("pin")}: ${escapeHtml(String(worktree.pinned ?? task.thread?.pinned ?? false))}</p><p>${t("receipts")}: adoption=${escapeHtml(settlement.adoptionReceipt?.targetCommit || "—")} (${escapeHtml(settlement.adoptionReceipt?.integrationStrategy || "—")}); cleanup=${escapeHtml(settlement.cleanupReceipt?.mode || "—")}</p><p>${escapeHtml(settlement.blocker?.message || task.blocker?.message || "")}</p></div><div class="inspector-block"><h3>${t("result")}</h3><p>${escapeHtml(task.result?.summary || "—")}</p></div><div class="inspector-block"><h3>${t("evidence")}</h3>${renderList(task.verification, t("noEvidence"))}</div><div class="inspector-block"><h3>${t("artifacts")}</h3>${renderList(task.artifacts, t("noArtifacts"))}</div>`;
 }
 
 function renderEvents() {
@@ -177,7 +179,9 @@ function taskActions(task, run) {
   const actions = [];
   if (["created", "failed"].includes(task.status)) actions.push(`<button class="mlh-button is-small" data-action="prepare">${t("prepare")}</button>`);
   if (run.executionMode === "dry-run" && ["created", "prepared"].includes(task.status)) actions.push(`<button class="mlh-button is-small is-quiet" data-action="simulate">${t("simulate")}</button>`);
-  if (["review", "settling", "needs_attention"].includes(task.status)) { actions.push(`<button class="mlh-button is-small is-primary" data-action="adopt">${t("adopt")}</button>`); actions.push(`<button class="mlh-button is-small is-quiet" data-action="continue">${t("continue")}</button>`); actions.push(`<button class="mlh-button is-small is-danger" data-action="discard">${t("discard")}</button>`); }
+  if (task.status === "review") { actions.push(`<button class="mlh-button is-small is-primary" data-action="adopt">${t("adopt")}</button>`); actions.push(`<button class="mlh-button is-small is-quiet" data-action="continue">${t("continue")}</button>`); actions.push(`<button class="mlh-button is-small is-danger" data-action="discard">${t("discard")}</button>`); }
+  if (task.settlement?.phase === "integration_pending" || (task.settlement?.phase === "blocked" && task.settlement?.blocker?.resumePhase === "integration_pending")) actions.push(`<button class="mlh-button is-small is-primary" data-action="integrate">${t("integrate")}</button>`);
+  if (task.settlement?.phase === "cleanup_pending" && task.settlement?.unpinReceipt && task.settlement?.archiveReceipt) actions.push(`<button class="mlh-button is-small is-primary" data-action="cleanup">${t("cleanup")}</button>`);
   if (["settling", "needs_attention"].includes(task.status) || ["integration_pending", "discard_pending", "cleanup_pending", "cleanup_blocked", "orphan_recovery_required"].includes(task.settlement?.phase)) actions.push(`<button class="mlh-button is-small is-quiet" data-action="reconcile">${t("reconcile")}</button>`);
   if (!["completed", "failed", "cancelled"].includes(task.status)) actions.push(`<button class="mlh-button is-small is-danger" data-action="cancel">${t("requestCancel")}</button>`);
   return actions.join("");

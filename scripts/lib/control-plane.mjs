@@ -14,7 +14,16 @@ import {
   buildNativeOperationIntent,
   resolveProjectLaunch
 } from "./native-thread-tools.mjs";
-import { acquireSettlementLock, releaseSettlementLock, inspectRepository, removeExactWorktree, removeExactBranch } from "./git-settlement.mjs";
+import {
+  acquireSettlementLock,
+  releaseSettlementLock,
+  inspectRepository,
+  captureCandidate,
+  integrateCandidate,
+  verifyAdoption,
+  removeExactWorktree,
+  removeExactBranch
+} from "./git-settlement.mjs";
 
 const TERMINAL_TASK_STATES = new Set(["completed", "failed", "cancelled"]);
 const MESSAGE_TYPES = new Set([
@@ -137,7 +146,7 @@ export class ControlPlane {
       messages: [],
       events: [event("RUN_CREATED", "Task-control run created", { executionMode }, at)]
     };
-    await this.ledger.update((draft) => {
+    await this.ledger.update(async (draft) => {
       draft.runs[id] = run;
       return { runId: id };
     });
@@ -162,7 +171,7 @@ export class ControlPlane {
       throw asControlPlaneError(error);
     }
     enrichSettlement(task);
-    await this.ledger.update((draft) => {
+    await this.ledger.update(async (draft) => {
       const run = requireRun(draft, input.runId);
       requireRunOpen(run);
       run.tasks[task.id] = task;
@@ -226,7 +235,7 @@ export class ControlPlane {
   async resolveProject({ runId, operationId, project, confirmLiveAction = false }) {
     const at = nowIso(this.clock);
     let response;
-    await this.ledger.update((draft) => {
+    await this.ledger.update(async (draft) => {
       const run = requireRun(draft, runId);
       requireRunOpen(run);
       const operation = requireOperation(run, operationId);
@@ -244,6 +253,25 @@ export class ControlPlane {
       requireLiveConfirmation(run, confirmLiveAction, "task creation");
       const task = requireTask(run, operation.taskIds[0]);
       const launch = resolveProjectLaunch(task, operation.metadata, project);
+      if (task.target?.environment === "worktree") {
+        const inspection = await inspectRepository(launch.project.path);
+        if (!inspection.isPrimaryCheckout) {
+          throw new ControlPlaneError(
+            "PRIMARY_CHECKOUT_REQUIRED",
+            "Worktree settlement requires the selected Local project to be the authoritative primary checkout"
+          );
+        }
+        if (inspection.branch !== task.target.integrationTargetBranch) {
+          throw new ControlPlaneError(
+            "TARGET_BRANCH_NOT_CHECKED_OUT",
+            `Selected Local checkout must be on ${task.target.integrationTargetBranch}`
+          );
+        }
+        task.git.commonDirectory = inspection.commonDirectory;
+        task.git.primaryCheckout = inspection.primaryCheckout;
+        task.git.targetBranch = task.target.integrationTargetBranch;
+        task.git.targetHeadAtDispatch = inspection.head;
+      }
       operation.arguments = launch.arguments;
       operation.phase = "ready";
       operation.project = launch.project;
@@ -445,12 +473,15 @@ export class ControlPlane {
       }
       if (tool === "codex_app__handoff_thread") {
         const target = requireTask(run, input.taskId);
-        if (!["running", "idle", "blocked", "needs_attention"].includes(target.status)) {
+        if (!["running", "idle", "blocked", "needs_attention", "settling"].includes(target.status)) {
           throw new ControlPlaneError(
             "TASK_NOT_HANDOFF_READY",
             `Task ${target.id} cannot be handed off from ${target.status}`
           );
         }
+      }
+      if (input.taskId && run.tasks[input.taskId]) {
+        enforceSettlementNativePreparation(run, run.tasks[input.taskId], tool, input);
       }
 
       let intent;
@@ -480,6 +511,9 @@ export class ControlPlane {
         })
       });
       if (childTask) operation.childTaskId = childTask.id;
+      if (input.taskId && run.tasks[input.taskId]) {
+        recordSettlementOperationPrepared(run.tasks[input.taskId], tool, input, operation.id);
+      }
       operation.confirmedAt =
         run.executionMode === "live" && MUTATING_THREAD_TOOLS.has(tool) ? at : null;
       run.operations[operation.id] = operation;
@@ -505,7 +539,7 @@ export class ControlPlane {
   async completeOperation({ runId, operationId, result = {} }) {
     const at = nowIso(this.clock);
     let response;
-    await this.ledger.update((draft) => {
+    await this.ledger.update(async (draft) => {
       const run = requireRun(draft, runId);
       const operation = requireOperation(run, operationId);
       if (["codex_app__create_thread", "codex_app__fork_thread"].includes(operation.tool)) {
@@ -535,13 +569,22 @@ export class ControlPlane {
       switch (operation.tool) {
         case "codex_app__list_threads":
           {
-            const boundTaskIds = applyThreadListBindings(run, operation, result, at);
+            const boundTaskIds = await applyThreadListBindings(run, operation, result, at);
+            const locatedTaskIds = await applyKnownThreadLocations(run, operation, result, at);
+            const affectedTaskIds = [...new Set([...boundTaskIds, ...locatedTaskIds])];
             finishOperation(
               operation,
               "succeeded",
-              { ...result, bindingCount: boundTaskIds.length },
+              {
+                ...result,
+                bindingCount: boundTaskIds.length,
+                locationUpdateCount: locatedTaskIds.length
+              },
               at
             );
+            for (const taskId of affectedTaskIds) {
+              if (!operation.taskIds.includes(taskId)) operation.taskIds.push(taskId);
+            }
           }
           break;
         case "codex_app__wait_threads":
@@ -604,6 +647,44 @@ export class ControlPlane {
     if (!["adopt", "continue", "discard"].includes(decision)) {
       throw new ControlPlaneError("INVALID_DECISION", `Unsupported decision: ${decision}`);
     }
+    const currentRun = await this.snapshot({ runId });
+    const currentTask = requireTask(currentRun, taskId);
+    const worktree = isWorktreeTask(currentTask);
+    let candidate = null;
+    if (worktree && decision !== "continue") {
+      const currentThread = findThreadForTask(currentRun, currentTask);
+      if (!currentThread?.pinned || currentTask.worktree?.pinned !== true) {
+        throw new ControlPlaneError(
+          "WORKTREE_PIN_REQUIRED",
+          "A managed worktree must remain pinned through review and settlement"
+        );
+      }
+      const primaryCheckout = currentTask.git?.primaryCheckout || currentTask.cwd;
+      const runtimePath = currentTask.worktree?.runtimeCwd || currentThread.runtimeCwd;
+      const targetBranch = currentTask.git?.targetBranch || currentTask.target?.integrationTargetBranch;
+      const commonDirectory = currentTask.git?.commonDirectory;
+      if (
+        !path.isAbsolute(primaryCheckout || "") ||
+        !path.isAbsolute(runtimePath || "") ||
+        !path.isAbsolute(commonDirectory || "")
+      ) {
+        throw new ControlPlaneError(
+          "SETTLEMENT_IDENTITY_INCOMPLETE",
+          "Review requires exact primary checkout, common directory, and runtime worktree path"
+        );
+      }
+      try {
+        candidate = await captureCandidate({
+          primaryCheckout,
+          runtimePath,
+          targetBranch,
+          expectedCommonDirectory: commonDirectory,
+          expectedTemporaryBranch: currentTask.worktree?.branchAtBinding || null
+        });
+      } catch (error) {
+        throw asControlPlaneError(error);
+      }
+    }
     const at = nowIso(this.clock);
     let response;
     await this.ledger.update((draft) => {
@@ -615,15 +696,23 @@ export class ControlPlane {
           `Task ${taskId} is ${task.status}; a controller decision requires review`
         );
       }
-      const worktree = task.target?.environment === "worktree" || task.project?.environment === "worktree";
       const nextStatus = decision === "continue" ? "idle" : worktree ? "settling" : decision === "adopt" ? "completed" : "failed";
       transition(task, "task", nextStatus, at);
       if (worktree) {
-        task.settlement = task.settlement || defaultSettlement(true);
-        task.settlement.required = true;
-        task.settlement.decision = decision;
-        task.settlement.phase = decision === "adopt" ? "integration_pending" : decision === "discard" ? "discard_pending" : "awaiting_decision";
-        task.settlement.terminalStatus = decision === "discard" ? "failed" : null;
+        enrichSettlement(task);
+        if (decision === "continue") {
+          task.settlement = defaultSettlement(true);
+        } else {
+          task.worktree.candidateCapture = structuredClone(candidate);
+          task.worktree.headAtReview = candidate.candidateHead;
+          task.worktree.branchAtReview = candidate.branchAtReview;
+          task.worktree.candidateFingerprint = candidate.candidateFingerprint;
+          task.settlement.required = true;
+          task.settlement.decision = decision;
+          task.settlement.phase = decision === "adopt" ? "handoff_preflight" : "discard_pending";
+          task.settlement.terminalStatus = decision === "discard" ? "failed" : null;
+          task.settlement.blocker = null;
+        }
       }
       if (decision === "discard") {
         task.error = { code: "CONTROLLER_REJECTED", message: note || "Controller rejected result" };
@@ -664,65 +753,295 @@ export class ControlPlane {
           error = { code: cause.code || "GIT_INSPECTION_FAILED", message: cause.message };
         }
         const registration = inspection?.worktrees?.find((entry) => runtimePath && filesystemPathEqual(entry.path, runtimePath));
-        const pathExists = Boolean(runtimePath && fsSync.existsSync(runtimePath));
+        const pathExists = Boolean(runtimePath && pathExistsNoFollow(runtimePath));
         let classification = "awaiting_decision";
         if (error) classification = "ownership_ambiguous";
-        else if (task.settlement?.adoptionReceipt && !pathExists && !registration) classification = "cleanup_verified";
+        else if (task.settlement?.cleanupReceipt && !pathExists && !registration) classification = "cleanup_verified";
+        else if (
+          task.settlement?.decision === "adopt" &&
+          !task.settlement?.adoptionReceipt &&
+          !pathExists &&
+          !registration
+        ) classification = "missing_before_adoption";
         else if (["completed", "failed", "cancelled"].includes(task.status) && (pathExists || registration)) classification = "orphan_recovery_required";
-        else if (task.settlement?.phase === "cleanup_pending") classification = "cleanup_pending";
+        else if (["cleanup_pending", "integration_verified", "discard_pending"].includes(task.settlement?.phase)) classification = "cleanup_pending";
+        else if (["handoff_preflight", "handoff_pending"].includes(task.settlement?.phase)) classification = "handoff_unknown";
+        else if (task.settlement?.phase === "integration_pending") classification = "integration_pending";
         else if (task.settlement?.phase === "blocked") classification = "ownership_ambiguous";
+        else if (!["review", "settling"].includes(task.status)) classification = "healthy_active";
         records.push({ runId: run.id, taskId: task.id, threadId: task.threadId, commonDirectory: inspection?.commonDirectory || task.git?.commonDirectory || null, primaryCheckout, runtimePath, pathExists, registered: Boolean(registration), classification, inspection, error, at });
       }
     }
     return { at, records };
   }
 
-  async recordSettlement({ runId, taskId, phase, adoptionReceipt = null, cleanupReceipt = null, blocker = null, runtimeCwd = null, headAtReview = null, branchAtReview = null, candidateFingerprint = null }) {
+  async integrateSettlement({ runId, taskId, commitMessage = null }) {
+    const run = await this.snapshot({ runId });
+    const task = requireTask(run, taskId);
+    if (!isWorktreeTask(task)) {
+      throw new ControlPlaneError("SETTLEMENT_NOT_REQUIRED", "Local tasks do not require worktree integration");
+    }
+    enrichSettlement(task);
+    if (task.settlement.decision !== "adopt") {
+      throw new ControlPlaneError("ADOPTION_NOT_SELECTED", "Only an adopted worktree candidate can be integrated");
+    }
+    if (task.settlement.adoptionReceipt) return task;
+    const resumingBlockedIntegration =
+      task.settlement.phase === "blocked" && task.settlement.blocker?.resumePhase === "integration_pending";
+    if (task.settlement.phase !== "integration_pending" && !resumingBlockedIntegration) {
+      throw new ControlPlaneError(
+        "INTEGRATION_NOT_READY",
+        `Adoption integration requires integration_pending; current phase is ${task.settlement.phase}`
+      );
+    }
+    const thread = findThreadForTask(run, task);
+    const primaryCheckout = task.git?.primaryCheckout || task.cwd;
+    const commonDirectory = task.git?.commonDirectory;
+    if (!thread || !filesystemPathEqual(thread.runtimeCwd, primaryCheckout)) {
+      throw new ControlPlaneError(
+        "LOCAL_LOCATION_NOT_CONFIRMED",
+        "Adoption integration requires list_threads evidence that the task is at the authoritative Local checkout"
+      );
+    }
+    if (!thread.pinned || task.worktree.pinned !== true) {
+      throw new ControlPlaneError("WORKTREE_PIN_REQUIRED", "The task must remain pinned until adoption is verified");
+    }
+    if (!path.isAbsolute(primaryCheckout) || !path.isAbsolute(commonDirectory || "")) {
+      throw new ControlPlaneError("INTEGRATION_IDENTITY_INCOMPLETE", "Exact primary checkout and common directory are required");
+    }
+    const lock = await acquireSettlementLock(commonDirectory, { runId, taskId, threadId: task.threadId || null });
+    try {
+      let adoptionReceipt;
+      try {
+        adoptionReceipt = await integrateCandidate({
+          primaryCheckout,
+          targetBranch: task.git.targetBranch,
+          candidate: task.worktree.candidateCapture,
+          commitMessage: commitMessage || `Integrate ${task.id}: ${task.title}`,
+          transactionId: `${runId}:${taskId}`,
+          recoveryState: resumingBlockedIntegration
+            ? task.settlement.blocker?.details?.recoveryState || null
+            : null
+        });
+      } catch (error) {
+        await this.recordSettlementBlocker({ runId, taskId, resumePhase: "integration_pending", error });
+        throw asControlPlaneError(error);
+      }
+      const at = nowIso(this.clock);
+      let result;
+      await this.ledger.update((draft) => {
+        const currentRun = requireRun(draft, runId);
+        const currentTask = requireTask(currentRun, taskId);
+        enrichSettlement(currentTask);
+        if (currentTask.settlement.adoptionReceipt) {
+          if (
+            currentTask.settlement.adoptionReceipt.candidateFingerprint !==
+            adoptionReceipt.candidateFingerprint
+          ) {
+            throw new ControlPlaneError(
+              "ADOPTION_RECEIPT_IMMUTABLE",
+              "A different adoption receipt is already recorded"
+            );
+          }
+        } else {
+          currentTask.settlement.adoptionReceipt = structuredClone(adoptionReceipt);
+        }
+        currentTask.settlement.phase = "integration_verified";
+        currentTask.settlement.blocker = null;
+        touchRun(currentRun, at);
+        recalculateRun(currentRun, at);
+        currentRun.events.push(
+          event("ADOPTION_VERIFIED", `Adoption verified: ${currentTask.title}`, { taskId }, at)
+        );
+        result = structuredClone(currentTask);
+      });
+      return result;
+    } finally {
+      await releaseSettlementLock(lock);
+    }
+  }
+
+  async cleanupSettlement({ runId, taskId }) {
+    const run = await this.snapshot({ runId });
+    const task = requireTask(run, taskId);
+    if (!isWorktreeTask(task)) {
+      throw new ControlPlaneError("SETTLEMENT_NOT_REQUIRED", "Local tasks do not require worktree cleanup");
+    }
+    enrichSettlement(task);
+    const decision = task.settlement.decision;
+    if (!["adopt", "discard"].includes(decision)) {
+      throw new ControlPlaneError("SETTLEMENT_DECISION_REQUIRED", "Cleanup requires adopt or discard");
+    }
+    if (decision === "adopt" && !task.settlement.adoptionReceipt) {
+      throw new ControlPlaneError("ADOPTION_RECEIPT_REQUIRED", "Adopted cleanup requires verified target-branch adoption");
+    }
+    if (!task.settlement.unpinReceipt || !task.settlement.archiveReceipt) {
+      throw new ControlPlaneError(
+        "NATIVE_CLEANUP_RECEIPTS_REQUIRED",
+        "Exact unpin and archive receipts are required before physical cleanup"
+      );
+    }
+    const thread = findThreadForTask(run, task);
+    if (!thread?.archived || thread.pinned || task.worktree.pinned) {
+      throw new ControlPlaneError(
+        "NATIVE_CLEANUP_STATE_REQUIRED",
+        "The controlled task must be unpinned and archived before physical cleanup"
+      );
+    }
+    const primaryCheckout = task.git?.primaryCheckout || task.cwd;
+    const runtimePath = task.worktree?.runtimeCwd;
+    const commonDirectory = task.git?.commonDirectory;
+    if (
+      !path.isAbsolute(primaryCheckout) ||
+      !path.isAbsolute(runtimePath || "") ||
+      !path.isAbsolute(commonDirectory || "")
+    ) {
+      throw new ControlPlaneError(
+        "CLEANUP_IDENTITY_INCOMPLETE",
+        "Exact primary checkout, common directory, and runtime path are required"
+      );
+    }
+    if (decision === "adopt") {
+      try {
+        await verifyAdoption({
+          primaryCheckout,
+          targetBranch: task.git.targetBranch,
+          candidate: task.worktree.candidateCapture,
+          adoptionReceipt: task.settlement.adoptionReceipt
+        });
+      } catch (error) {
+        await this.recordSettlementBlocker({ runId, taskId, resumePhase: "cleanup_pending", error });
+        throw asControlPlaneError(error);
+      }
+    }
+    const branchAtReview = task.worktree.branchAtReview;
+    const temporaryBranchRef = task.worktree.branchAtBinding || null;
+    if (
+      branchAtReview &&
+      temporaryBranchRef &&
+      branchAtReview !== temporaryBranchRef
+    ) {
+      const error = new ControlPlaneError(
+        "UNEXPECTED_REVIEW_BRANCH",
+        "Review occurred on a branch different from the task-owned branch recorded at binding"
+      );
+      error.details = { branchAtReview, temporaryBranchRef };
+      await this.recordSettlementBlocker({ runId, taskId, resumePhase: "cleanup_pending", error });
+      throw error;
+    }
+    if (
+      temporaryBranchRef &&
+      temporaryBranchRef.replace(/^refs\/heads\//, "") === task.git.targetBranch
+    ) {
+      throw new ControlPlaneError(
+        "TARGET_BRANCH_CLEANUP_REFUSED",
+        "The authoritative target branch cannot be treated as a temporary task branch"
+      );
+    }
+    const force = decision === "discard";
+    const lock = await acquireSettlementLock(commonDirectory, {
+      runId,
+      taskId,
+      threadId: task.threadId || null
+    });
+    try {
+      let receipt;
+      let branchReceipt;
+      try {
+        receipt = await removeExactWorktree({
+          primaryCheckout,
+          runtimePath,
+          expectedCommonDirectory: commonDirectory,
+          expectedBranch: branchAtReview,
+          force
+        });
+        branchReceipt = await removeExactBranch({
+          primaryCheckout,
+          branch: temporaryBranchRef,
+          expectedHead:
+            task.settlement.adoptionReceipt?.temporaryBranchHeadAfterIntegration ||
+            task.worktree.headAtReview,
+          force
+        });
+      } catch (error) {
+        await this.recordSettlementBlocker({ runId, taskId, resumePhase: "cleanup_pending", error });
+        throw asControlPlaneError(error);
+      }
+      const verified = receipt.pathAbsent && receipt.registrationAbsent && branchReceipt.branchAbsent;
+      if (!verified) {
+        const error = new ControlPlaneError(
+          "CLEANUP_POST_STATE_FAILED",
+          "Cleanup did not prove exact path, registration, and branch absence"
+        );
+        await this.recordSettlementBlocker({ runId, taskId, resumePhase: "cleanup_pending", error });
+        throw error;
+      }
+      const cleanupReceipt = {
+        runId,
+        taskId,
+        threadId: task.threadId || null,
+        commonDirectory,
+        primaryCheckout,
+        runtimePath,
+        temporaryBranchRef,
+        decision,
+        authority: task.target.worktreeLifecycleAuthority,
+        unpinReceipt: structuredClone(task.settlement.unpinReceipt),
+        archiveReceipt: structuredClone(task.settlement.archiveReceipt),
+        ...receipt,
+        branchReceipt
+      };
+      const at = nowIso(this.clock);
+      let result;
+      await this.ledger.update((draft) => {
+        const currentRun = requireRun(draft, runId);
+        const currentTask = requireTask(currentRun, taskId);
+        enrichSettlement(currentTask);
+        currentTask.settlement.cleanupReceipt = structuredClone(cleanupReceipt);
+        currentTask.settlement.phase = "cleanup_verified";
+        currentTask.settlement.blocker = null;
+        transition(
+          currentTask,
+          "task",
+          decision === "adopt" ? "completed" : currentTask.settlement.terminalStatus || "failed",
+          at
+        );
+        touchRun(currentRun, at);
+        recalculateRun(currentRun, at);
+        currentRun.events.push(
+          event("CLEANUP_VERIFIED", `Cleanup verified: ${currentTask.title}`, { taskId }, at)
+        );
+        result = structuredClone(currentTask);
+      });
+      return result;
+    } finally {
+      await releaseSettlementLock(lock);
+    }
+  }
+
+  async recordSettlementBlocker({ runId, taskId, resumePhase, error }) {
     const at = nowIso(this.clock);
-    if (typeof phase !== "string" || !phase.trim()) throw new ControlPlaneError("INVALID_SETTLEMENT_PHASE", "phase is required");
     let result;
     await this.ledger.update((draft) => {
       const run = requireRun(draft, runId);
       const task = requireTask(run, taskId);
       enrichSettlement(task);
-      task.settlement.phase = phase;
-      if (runtimeCwd) task.worktree.runtimeCwd = path.resolve(runtimeCwd);
-      if (headAtReview) task.worktree.headAtReview = headAtReview;
-      if (branchAtReview !== null) task.worktree.branchAtReview = branchAtReview;
-      if (candidateFingerprint) task.worktree.candidateFingerprint = candidateFingerprint;
-      if (adoptionReceipt) task.settlement.adoptionReceipt = structuredClone(adoptionReceipt);
-      if (cleanupReceipt) task.settlement.cleanupReceipt = structuredClone(cleanupReceipt);
-      task.settlement.blocker = blocker ? structuredClone(blocker) : null;
-      const cleanupVerified = phase === "cleanup_verified" && Boolean(task.settlement.cleanupReceipt);
-      if (cleanupVerified && task.settlement.decision === "adopt") transition(task, "task", "completed", at);
-      else if (cleanupVerified && task.settlement.decision === "discard") transition(task, "task", task.settlement.terminalStatus || "failed", at);
-      else if (task.target.environment === "worktree" && ["completed", "failed", "cancelled"].includes(task.status)) transition(task, "task", "needs_attention", at);
+      task.settlement.phase = "blocked";
+      task.settlement.blocker = {
+        code: error?.code || "SETTLEMENT_BLOCKED",
+        message: error?.message || "Settlement is blocked",
+        details: error?.details || null,
+        resumePhase,
+        recordedAt: at
+      };
+      touchRun(run, at);
       recalculateRun(run, at);
-      run.events.push(event("SETTLEMENT_RECORDED", `Settlement ${phase}: ${task.title}`, { taskId, phase }, at));
+      run.events.push(
+        event("SETTLEMENT_BLOCKED", `Settlement blocked: ${task.title}`, { taskId, resumePhase }, at)
+      );
       result = structuredClone(task);
     });
     return result;
-  }
-
-  async cleanupSettlement({ runId, taskId, force = false }) {
-    const run = await this.snapshot({ runId });
-    const task = requireTask(run, taskId);
-    if (task.target?.environment !== "worktree") throw new ControlPlaneError("SETTLEMENT_NOT_REQUIRED", "Local tasks do not require worktree cleanup");
-    const primaryCheckout = task.git?.primaryCheckout || task.cwd;
-    const runtimePath = task.worktree?.runtimeCwd;
-    const commonDirectory = task.git?.commonDirectory;
-    if (!path.isAbsolute(primaryCheckout) || !path.isAbsolute(runtimePath || "") || !path.isAbsolute(commonDirectory || "")) throw new ControlPlaneError("CLEANUP_IDENTITY_INCOMPLETE", "Exact primary checkout, common directory, and runtime path are required");
-    const lock = await acquireSettlementLock(commonDirectory, { runId, taskId, threadId: task.threadId || null });
-    try {
-      const receipt = await removeExactWorktree({ primaryCheckout, runtimePath, ownerPath: runtimePath, force });
-      const branchReceipt = task.worktree.branchAtReview
-        ? await removeExactBranch({ primaryCheckout, branch: task.worktree.branchAtReview, force })
-        : { branch: null, mode: "not_recorded", forceUsed: false, branchAbsent: true };
-      const verified = receipt.pathAbsent && receipt.registrationAbsent && branchReceipt.branchAbsent;
-      return await this.recordSettlement({ runId, taskId, phase: verified ? "cleanup_verified" : "cleanup_pending", cleanupReceipt: { runId, taskId, threadId: task.threadId || null, commonDirectory, primaryCheckout, runtimePath, decision: task.settlement.decision, authority: task.target.worktreeLifecycleAuthority, ...receipt, branchReceipt } });
-    } finally {
-      await releaseSettlementLock(lock);
-    }
   }
 
   async requestCancel({ runId, taskId, reason }) {
@@ -814,10 +1133,20 @@ export class ControlPlane {
 }
 
 function filesystemPathEqual(left, right) {
+  if (typeof left !== "string" || typeof right !== "string" || !left || !right) return false;
   const normalize = (candidate) => {
     try { return fsSync.realpathSync(candidate); } catch { return path.resolve(candidate); }
   };
   return normalize(left) === normalize(right);
+}
+
+function pathExistsNoFollow(candidate) {
+  try {
+    fsSync.lstatSync(candidate);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function createOperation({
@@ -851,7 +1180,7 @@ function createOperation({
   };
 }
 
-function applyThreadListBindings(run, operation, result, at) {
+async function applyThreadListBindings(run, operation, result, at) {
   rejectFabricatedThreadBindingEvidence(result);
   if (!isRecord(result) || result.schemaVersion !== 4) {
     throw new ControlPlaneError(
@@ -929,6 +1258,13 @@ function applyThreadListBindings(run, operation, result, at) {
       status: task.sourceTaskId ? "idle" : "active",
       updatedAt: at
     };
+    if (task.target?.environment === "worktree") {
+      task.worktree.runtimeCwd = nativeThread.cwd;
+      task.worktree.threadId = task.threadId;
+      task.worktree.clientThreadId = null;
+      task.worktree.pinned = thread.pinned;
+      await recordBoundWorktreeIdentity(task, nativeThread.cwd);
+    }
     run.threads[task.threadId] = thread;
     run.events.push(
       event(
@@ -949,6 +1285,143 @@ function applyThreadListBindings(run, operation, result, at) {
     boundTaskIds.push(task.id);
   }
   return boundTaskIds;
+}
+
+async function applyKnownThreadLocations(run, operation, result, at) {
+  const updatedTaskIds = [];
+  for (const task of Object.values(run.tasks || {})) {
+    if (!task.threadId) continue;
+    const matches = result.threads.filter((entry) => isRecord(entry) && entry.id === task.threadId);
+    if (matches.length > 1) {
+      throw new ControlPlaneError(
+        "AMBIGUOUS_THREAD_LOCATION",
+        `Native thread ${task.threadId} appeared more than once in list_threads`
+      );
+    }
+    if (matches.length === 0) continue;
+    const entry = matches[0];
+    validateNativeThreadEntry(entry);
+    if (typeof entry.cwd !== "string" || !entry.cwd || !path.isAbsolute(entry.cwd)) {
+      throw new ControlPlaneError(
+        "INVALID_THREAD_LOCATION",
+        `Native thread ${task.threadId} must expose an absolute cwd`
+      );
+    }
+    const thread = findThreadForTask(run, task);
+    if (!thread) continue;
+    if (
+      isWorktreeTask(task) &&
+      task.worktree?.identityCaptured !== true &&
+      task.git?.primaryCheckout &&
+      !filesystemPathEqual(entry.cwd, task.git.primaryCheckout)
+    ) {
+      await recordBoundWorktreeIdentity(task, entry.cwd);
+    }
+    thread.runtimeCwd = entry.cwd;
+    thread.updatedAt = at;
+    if (isWorktreeTask(task) && task.status === "settling" && task.settlement?.decision === "adopt") {
+      enrichSettlement(task);
+      const primaryCheckout = task.git?.primaryCheckout;
+      const runtimePath = task.worktree?.runtimeCwd;
+      if (primaryCheckout && filesystemPathEqual(entry.cwd, primaryCheckout)) {
+        task.settlement.phase = "integration_pending";
+        task.settlement.blocker = null;
+      } else if (runtimePath && filesystemPathEqual(entry.cwd, runtimePath)) {
+        if (task.settlement.phase === "blocked" && task.settlement.blocker?.resumePhase === "handoff_preflight") {
+          task.settlement.phase = "handoff_preflight";
+          task.settlement.blocker = null;
+        }
+      } else {
+        task.settlement.phase = "blocked";
+        task.settlement.blocker = {
+          code: "HANDOFF_LOCATION_AMBIGUOUS",
+          message: "Native thread cwd matches neither the managed worktree nor the authoritative Local checkout",
+          details: { observedCwd: entry.cwd, runtimePath, primaryCheckout },
+          resumePhase: "handoff_preflight",
+          recordedAt: at
+        };
+      }
+    }
+    if (!operation.taskIds.includes(task.id)) operation.taskIds.push(task.id);
+    updatedTaskIds.push(task.id);
+  }
+  return updatedTaskIds;
+}
+
+async function recordBoundWorktreeIdentity(task, runtimeCwd) {
+  const primary = await inspectRepository(task.git.primaryCheckout || task.cwd);
+  const registrations = primary.worktrees.filter((entry) =>
+    filesystemPathEqual(entry.path, runtimeCwd)
+  );
+  if (registrations.length !== 1) {
+    throw new ControlPlaneError(
+      registrations.length === 0 ? "WORKTREE_REGISTRATION_MISSING" : "WORKTREE_OWNERSHIP_AMBIGUOUS",
+      `Worktree binding requires one exact Git registration; found ${registrations.length}`
+    );
+  }
+  const registration = registrations[0];
+  task.worktree.runtimeCwd = runtimeCwd;
+  task.worktree.identityCaptured = true;
+  task.worktree.headAtBinding = registration.head;
+  task.worktree.branchAtBinding = registration.branch;
+  task.worktree.detachedAtBinding = registration.detached;
+}
+
+function enforceSettlementNativePreparation(run, task, tool, input) {
+  if (!isWorktreeTask(task) || task.status !== "settling") return;
+  enrichSettlement(task);
+  const thread = findThreadForTask(run, task);
+  if (tool === "codex_app__handoff_thread") {
+    if (task.settlement.decision !== "adopt" || task.settlement.phase !== "handoff_preflight") {
+      throw new ControlPlaneError(
+        "SETTLEMENT_HANDOFF_NOT_READY",
+        `Managed adoption Handoff requires handoff_preflight; current phase is ${task.settlement.phase}`
+      );
+    }
+    if (!thread?.pinned || task.worktree.pinned !== true) {
+      throw new ControlPlaneError("WORKTREE_PIN_REQUIRED", "Managed worktree must remain pinned before Handoff");
+    }
+    if (!thread.runtimeCwd || !filesystemPathEqual(thread.runtimeCwd, task.worktree.runtimeCwd)) {
+      throw new ControlPlaneError(
+        "HANDOFF_LOCATION_NOT_CONFIRMED",
+        "list_threads must confirm the native task at the exact managed worktree before Handoff"
+      );
+    }
+  }
+  if (tool === "codex_app__set_thread_pinned" && input.pinned === false) {
+    const ready = task.settlement.decision === "adopt"
+      ? task.settlement.phase === "integration_verified" && Boolean(task.settlement.adoptionReceipt)
+      : task.settlement.decision === "discard" && task.settlement.phase === "discard_pending";
+    if (!ready) {
+      throw new ControlPlaneError(
+        "UNPIN_NOT_READY",
+        "A managed worktree can be unpinned only after adoption proof or an explicit discard decision"
+      );
+    }
+  }
+  if (tool === "codex_app__set_thread_archived" && input.archived === true) {
+    if (!task.settlement.unpinReceipt || thread?.pinned !== false || task.worktree.pinned !== false) {
+      throw new ControlPlaneError(
+        "ARCHIVE_NOT_READY",
+        "A managed worktree can be archived only after a recorded unpin result"
+      );
+    }
+    if (task.settlement.decision === "adopt" && !task.settlement.adoptionReceipt) {
+      throw new ControlPlaneError("ADOPTION_RECEIPT_REQUIRED", "Archive cannot precede adoption proof");
+    }
+  }
+}
+
+function recordSettlementOperationPrepared(task, tool, input, operationId) {
+  if (!isWorktreeTask(task) || task.status !== "settling") return;
+  enrichSettlement(task);
+  if (!task.settlement.operationIds.includes(operationId)) {
+    task.settlement.operationIds.push(operationId);
+  }
+  if (tool === "codex_app__handoff_thread") task.settlement.phase = "handoff_pending";
+  if (tool === "codex_app__set_thread_pinned" && input.pinned === false) {
+    task.settlement.phase = "cleanup_pending";
+  }
 }
 
 function rejectFabricatedThreadBindingEvidence(result) {
@@ -1139,7 +1612,11 @@ function applyHandoffStart(run, operation, result, at) {
     ? result.runtimeRevision
     : null;
   const task = requireTask(run, operation.taskIds[0]);
-  transition(task, "task", "needs_attention", at);
+  if (task.status !== "settling") transition(task, "task", "needs_attention", at);
+  else {
+    enrichSettlement(task);
+    task.settlement.phase = "handoff_pending";
+  }
   const thread = findThreadForTask(run, task);
   if (thread) transition(thread, "thread", "handoff", at);
   const state = requireHandoffState(result.handoffState);
@@ -1186,13 +1663,21 @@ function applyCompletedHandoff(run, task, result, at) {
   const nextHostId = optionalText(result.hostId || task.hostId);
   task.threadId = nextThreadId;
   task.hostId = nextHostId;
-  transition(task, "task", result.taskStatus === "idle" ? "idle" : "running", at);
+  const settling = task.status === "settling";
+  if (!settling) transition(task, "task", result.taskStatus === "idle" ? "idle" : "running", at);
+  else {
+    enrichSettlement(task);
+    task.settlement.phase = "handoff_pending";
+  }
   if (oldKey) delete run.threads[oldKey];
   const thread = {
     ...(oldThread || makeThreadRecord({ task, status: "active", at })),
     id: nextThreadId,
     hostId: nextHostId,
     clientThreadId: null,
+    runtimeCwd: typeof result.cwd === "string" && path.isAbsolute(result.cwd)
+      ? result.cwd
+      : oldThread?.runtimeCwd || null,
     status: result.taskStatus === "idle" ? "idle" : "active",
     updatedAt: at
   };
@@ -1221,6 +1706,18 @@ function applyPinnedResult(run, operation, result, at) {
     thread.pinned = pinned;
     thread.updatedAt = at;
   }
+  if (isWorktreeTask(task)) {
+    enrichSettlement(task);
+    task.worktree.pinned = pinned;
+    if (task.status === "settling" && pinned === false) {
+      task.settlement.unpinReceipt = {
+        operationId: operation.id,
+        threadId: task.threadId,
+        pinned: false,
+        recordedAt: at
+      };
+    }
+  }
 }
 
 function applyArchivedResult(run, operation, result, at) {
@@ -1242,6 +1739,17 @@ function applyArchivedResult(run, operation, result, at) {
         : "idle";
     transition(thread, "thread", restoredStatus, at);
     thread.previousStatus = null;
+  }
+  if (isWorktreeTask(task) && task.status === "settling" && archived) {
+    enrichSettlement(task);
+    task.settlement.archiveReceipt = {
+      operationId: operation.id,
+      threadId: task.threadId,
+      hostId: task.hostId || null,
+      archived: true,
+      recordedAt: at
+    };
+    task.settlement.phase = "cleanup_pending";
   }
 }
 
@@ -1268,6 +1776,16 @@ function failOperation(run, operation, error, at) {
     ].includes(operation.tool)
   ) {
     task.error = structuredClone(operation.error);
+    if (task.status === "settling" && isWorktreeTask(task)) {
+      enrichSettlement(task);
+      task.settlement.phase = "blocked";
+      task.settlement.blocker = {
+        ...structuredClone(operation.error),
+        resumePhase: operation.tool.includes("handoff") ? "handoff_pending" : task.settlement.phase,
+        recordedAt: at
+      };
+      return;
+    }
     try {
       transition(task, "task", "needs_attention", at);
     } catch {
@@ -1349,21 +1867,24 @@ function defaultSettlement(required = false) {
     terminalStatus: null,
     operationIds: [],
     adoptionReceipt: null,
+    unpinReceipt: null,
+    archiveReceipt: null,
     cleanupReceipt: null,
     blocker: null
   };
 }
 
 function enrichSettlement(task) {
-  const worktree = task.target?.environment === "worktree";
-  task.git ||= {
+  const worktree = isWorktreeTask(task);
+  task.git = {
     commonDirectory: null,
     primaryCheckout: task.cwd,
     targetBranch: task.target?.integrationTargetBranch || null,
     targetHeadAtDispatch: null,
-    accessMode: task.target?.accessMode || "write"
+    accessMode: task.target?.accessMode || "write",
+    ...(task.git || {})
   };
-  task.worktree ||= {
+  task.worktree = {
     managed: worktree,
     purpose: task.target?.worktreePurpose || null,
     authority: task.target?.worktreeLifecycleAuthority || null,
@@ -1371,11 +1892,25 @@ function enrichSettlement(task) {
     threadId: task.threadId || null,
     clientThreadId: task.clientThreadId || null,
     pinned: false,
+    identityCaptured: false,
     headAtReview: null,
     branchAtReview: null,
-    candidateFingerprint: null
+    headAtBinding: null,
+    branchAtBinding: null,
+    detachedAtBinding: false,
+    candidateFingerprint: null,
+    candidateCapture: null,
+    ...(task.worktree || {})
   };
-  task.settlement ||= defaultSettlement(worktree);
+  task.settlement = {
+    ...defaultSettlement(worktree),
+    ...(task.settlement || {})
+  };
+  if (!Array.isArray(task.settlement.operationIds)) task.settlement.operationIds = [];
+}
+
+function isWorktreeTask(task) {
+  return task?.target?.environment === "worktree" || task?.project?.environment === "worktree";
 }
 
 function recalculateRun(run, at) {

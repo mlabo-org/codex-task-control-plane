@@ -2,8 +2,5 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "codex-task-control-plane/mcp/control-plane-cleanup-settlement-output/v1",
   "title": "control_plane_cleanup_settlement output",
-  "type": "object",
-  "required": ["id", "status", "workflow"],
-  "properties": { "id": { "type": "string", "minLength": 1 }, "status": { "type": "string" }, "workflow": { "type": "object", "additionalProperties": true } },
-  "additionalProperties": false
+  "$ref": "../../run.schema.json#/$defs/task"
 }
