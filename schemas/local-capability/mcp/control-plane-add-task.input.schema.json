@@ -1,27 +1,145 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "codex-thread-orchestration/mcp/control-plane-add-task-input/v1",
+  "$id": "codex-task-control-plane/mcp/control-plane-add-task-input/v1",
   "title": "control_plane_add_task input",
   "type": "object",
-  "required": ["runId", "title", "prompt", "role", "cwd"],
+  "required": [
+    "runId",
+    "title",
+    "prompt",
+    "role",
+    "cwd"
+  ],
   "properties": {
-    "runId": { "$ref": "#/$defs/id" }, "title": { "$ref": "#/$defs/text" }, "prompt": { "$ref": "#/$defs/text" }, "role": { "$ref": "#/$defs/text" }, "cwd": { "$ref": "#/$defs/text" },
-    "environment": { "enum": ["auto", "local", "worktree"], "default": "auto" },
-    "startingState": { "$ref": "#/$defs/startingState" },
-    "model": { "$ref": "#/$defs/text" },
-    "thinking": { "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"] },
-    "profileAuthority": { "$ref": "#/$defs/text" },
-    "workerMode": { "enum": ["direct", "coding-agent-orchestrator"], "default": "direct" },
-    "codingAgentOrchestratorScope": { "$ref": "#/$defs/text" },
-    "codingAgentOrchestratorDeliveryMode": { "enum": ["ITERATIVE_DELIVERY", "ONE_SHOT_QUALITY"], "default": "ITERATIVE_DELIVERY" },
-    "deliveryModeAuthority": { "$ref": "#/$defs/text" },
-    "maxDelegationDepth": { "type": "integer", "minimum": 0, "maximum": 8, "default": 0 },
-    "delegationAuthority": { "$ref": "#/$defs/text" },
-    "acceptanceCriteria": { "type": "array", "items": { "$ref": "#/$defs/text" }, "default": [] }
+    "runId": {
+      "$ref": "#/$defs/id"
+    },
+    "title": {
+      "$ref": "#/$defs/text"
+    },
+    "prompt": {
+      "$ref": "#/$defs/text"
+    },
+    "role": {
+      "$ref": "#/$defs/text"
+    },
+    "cwd": {
+      "$ref": "#/$defs/text"
+    },
+    "accessMode": {
+      "enum": ["read", "write"],
+      "default": "write"
+    },
+    "environment": {
+      "enum": [
+        "local",
+        "worktree"
+      ],
+      "default": "local"
+    },
+    "integrationTargetBranch": {
+      "$ref": "#/$defs/text"
+    },
+    "worktreePurpose": {
+      "enum": [
+        "same_repo_parallel_write",
+        "destructive_experiment",
+        "explicit_user_isolation"
+      ]
+    },
+    "worktreeLifecycleAuthority": {
+      "$ref": "#/$defs/text"
+    },
+    "startingState": {
+      "$ref": "#/$defs/startingState"
+    },
+    "model": {
+      "$ref": "#/$defs/text"
+    },
+    "thinking": {
+      "enum": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra"
+      ]
+    },
+    "profileAuthority": {
+      "$ref": "#/$defs/text"
+    },
+    "stateControl": {
+      "enum": [
+        "none",
+        "codex-activity-oversight"
+      ],
+      "default": "none"
+    },
+    "stateControlScope": {
+      "$ref": "#/$defs/text"
+    },
+    "deliveryMode": {
+      "enum": [
+        "ITERATIVE_DELIVERY",
+        "ONE_SHOT_QUALITY"
+      ],
+      "default": "ITERATIVE_DELIVERY"
+    },
+    "deliveryModeAuthority": {
+      "$ref": "#/$defs/text"
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/text"
+      },
+      "default": []
+    }
   },
   "$defs": {
-    "id": { "type": "string", "minLength": 1 }, "text": { "type": "string", "minLength": 1 },
-    "startingState": { "oneOf": [ { "type": "object", "required": ["type"], "properties": { "type": { "const": "working-tree" } }, "additionalProperties": false }, { "type": "object", "required": ["type", "branchName"], "properties": { "type": { "const": "branch" }, "branchName": { "$ref": "#/$defs/text" } }, "additionalProperties": false } ] }
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startingState": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "working-tree"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "branchName"
+          ],
+          "properties": {
+            "type": {
+              "const": "branch"
+            },
+            "branchName": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
   },
   "additionalProperties": false
 }

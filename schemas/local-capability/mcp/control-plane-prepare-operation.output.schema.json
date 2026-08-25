@@ -1,5 +1,165 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-prepare-operation-output/v1", "title": "control_plane_prepare_operation output", "type": "object", "required": ["operation", "childTask", "executable", "nextCall"],
-  "properties": { "operation": { "$ref": "#/$defs/operation" }, "childTask": { "type": ["object", "null"] }, "executable": { "type": "boolean" }, "nextCall": { "description": "Prepared native-tool intent for the Codex controller; this MCP server does not invoke it.", "type": "object", "required": ["tool", "arguments"], "properties": { "tool": { "enum": ["codex_app__list_threads", "codex_app__wait_threads", "codex_app__read_thread", "codex_app__send_message_to_thread", "codex_app__fork_thread", "codex_app__handoff_thread", "codex_app__get_handoff_status", "codex_app__set_thread_title", "codex_app__set_thread_pinned", "codex_app__set_thread_archived", "codex_app__navigate_to_codex_page"] }, "arguments": { "type": "object", "additionalProperties": true } }, "additionalProperties": false } },
-  "$defs": { "text": { "type": "string", "minLength": 1 }, "operation": { "type": "object", "required": ["id", "kind", "tool", "status", "phase", "taskIds", "childTaskId", "arguments", "metadata", "project", "confirmedAt", "runtimeOperationId", "runtimeRevision", "result", "error", "createdAt", "updatedAt"], "properties": { "id": { "$ref": "#/$defs/text" }, "kind": { "const": "native" }, "tool": { "enum": ["codex_app__list_threads", "codex_app__wait_threads", "codex_app__read_thread", "codex_app__send_message_to_thread", "codex_app__fork_thread", "codex_app__handoff_thread", "codex_app__get_handoff_status", "codex_app__set_thread_title", "codex_app__set_thread_pinned", "codex_app__set_thread_archived", "codex_app__navigate_to_codex_page"] }, "status": { "const": "prepared" }, "phase": { "const": "ready" }, "taskIds": { "type": "array", "items": { "$ref": "#/$defs/text" } }, "childTaskId": { "type": ["string", "null"] }, "arguments": { "type": "object", "additionalProperties": true }, "metadata": { "type": "object", "additionalProperties": true }, "project": { "type": "null" }, "confirmedAt": { "type": ["string", "null"], "format": "date-time" }, "runtimeOperationId": { "type": "null" }, "runtimeRevision": { "type": "null" }, "result": { "type": "null" }, "error": { "type": "null" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } }, "additionalProperties": false } }, "additionalProperties": false
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-prepare-operation-output/v1",
+  "title": "control_plane_prepare_operation output",
+  "type": "object",
+  "required": [
+    "operation",
+    "childTask",
+    "executable",
+    "nextCall"
+  ],
+  "properties": {
+    "operation": {
+      "$ref": "#/$defs/operation"
+    },
+    "childTask": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "executable": {
+      "type": "boolean"
+    },
+    "nextCall": {
+      "description": "Prepared native-tool intent for the Codex controller; this MCP server does not invoke it.",
+      "type": "object",
+      "required": [
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "tool": {
+          "enum": [
+            "codex_app__list_threads",
+            "codex_app__wait_threads",
+            "codex_app__read_thread",
+            "codex_app__send_message_to_thread",
+            "codex_app__fork_thread",
+            "codex_app__handoff_thread",
+            "codex_app__get_handoff_status",
+            "codex_app__set_thread_title",
+            "codex_app__set_thread_pinned",
+            "codex_app__set_thread_archived",
+            "codex_app__navigate_to_codex_page"
+          ]
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operation": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "tool",
+        "status",
+        "phase",
+        "taskIds",
+        "childTaskId",
+        "arguments",
+        "metadata",
+        "project",
+        "confirmedAt",
+        "runtimeOperationId",
+        "runtimeRevision",
+        "result",
+        "error",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "const": "native"
+        },
+        "tool": {
+          "enum": [
+            "codex_app__list_threads",
+            "codex_app__wait_threads",
+            "codex_app__read_thread",
+            "codex_app__send_message_to_thread",
+            "codex_app__fork_thread",
+            "codex_app__handoff_thread",
+            "codex_app__get_handoff_status",
+            "codex_app__set_thread_title",
+            "codex_app__set_thread_pinned",
+            "codex_app__set_thread_archived",
+            "codex_app__navigate_to_codex_page"
+          ]
+        },
+        "status": {
+          "const": "prepared"
+        },
+        "phase": {
+          "const": "ready"
+        },
+        "taskIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "childTaskId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "project": {
+          "type": "null"
+        },
+        "confirmedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "runtimeOperationId": {
+          "type": "null"
+        },
+        "runtimeRevision": {
+          "type": "null"
+        },
+        "result": {
+          "type": "null"
+        },
+        "error": {
+          "type": "null"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
 }

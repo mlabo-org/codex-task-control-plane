@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { LEDGER_SCHEMA_VERSION, Ledger } from "../scripts/lib/ledger.mjs";
 
-test("v2 ledger serializes concurrent updates and persists atomically", async (context) => {
+test("v3 ledger serializes concurrent updates and persists atomically", async (context) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-control-ledger-"));
   context.after(() => fs.rm(root, { recursive: true, force: true }));
   const filePath = path.join(root, "state", "ledger.json");

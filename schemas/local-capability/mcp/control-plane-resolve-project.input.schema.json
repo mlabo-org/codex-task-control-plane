@@ -1,9 +1,67 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "codex-thread-orchestration/mcp/control-plane-resolve-project-input/v1",
-  "title": "control_plane_resolve_project input", "type": "object", "required": ["runId", "operationId", "project"],
+  "$id": "codex-task-control-plane/mcp/control-plane-resolve-project-input/v1",
+  "title": "control_plane_resolve_project input",
+  "type": "object",
+  "required": [
+    "runId",
+    "operationId",
+    "project"
+  ],
   "properties": {
-    "runId": { "$ref": "#/$defs/text" }, "operationId": { "$ref": "#/$defs/text" }, "confirmLiveAction": { "type": "boolean", "default": false },
-    "project": { "type": "object", "required": ["projectId", "path"], "properties": { "projectId": { "$ref": "#/$defs/text" }, "path": { "$ref": "#/$defs/text" }, "projectKind": { "type": ["string", "null"] }, "label": { "type": ["string", "null"] }, "hostId": { "type": ["string", "null"] }, "isGitRepository": { "type": "boolean" } }, "additionalProperties": true }
-  }, "$defs": { "text": { "type": "string", "minLength": 1 } }, "additionalProperties": false
+    "runId": {
+      "$ref": "#/$defs/text"
+    },
+    "operationId": {
+      "$ref": "#/$defs/text"
+    },
+    "confirmLiveAction": {
+      "type": "boolean",
+      "default": false
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "projectId",
+        "path"
+      ],
+      "properties": {
+        "projectId": {
+          "$ref": "#/$defs/text"
+        },
+        "path": {
+          "$ref": "#/$defs/text"
+        },
+        "projectKind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hostId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isGitRepository": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
 }

@@ -117,7 +117,7 @@ test("noncanonical source and unsupported Node are explicit blockers", () => {
 });
 
 test("marketplace persistence is atomic-shaped and installed lookup is exact", async (context) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-orchestration-installer-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "task-control-plane-installer-"));
   context.after(() => fs.rm(root, { recursive: true, force: true }));
   const target = path.join(root, ".agents", "plugins", "marketplace.json");
   const document = { name: "personal", plugins: [] };

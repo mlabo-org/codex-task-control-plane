@@ -11,8 +11,8 @@ const [command = "help", ...args] = process.argv.slice(2);
 const options = parseOptions(args);
 const ledgerPath =
   options.state ||
-  process.env.CODEX_SESSION_CONTROL_PLANE_LEDGER ||
-  path.join(os.homedir(), ".codex", "session-control-plane", "ledger.json");
+  process.env.CODEX_TASK_CONTROL_PLANE_LEDGER ||
+  path.join(os.homedir(), ".codex", "task-control-plane", "ledger.json");
 const controlPlane = new ControlPlane({ ledger: new Ledger(ledgerPath) });
 
 try {
@@ -35,7 +35,7 @@ try {
     print(await seedDemo(controlPlane, options.cwd || process.cwd()));
   } else if (command === "smoke") {
     const smokePath =
-      options.state || path.join(os.tmpdir(), `codex-thread-orchestration-smoke-${process.pid}.json`);
+      options.state || path.join(os.tmpdir(), `codex-task-control-plane-smoke-${process.pid}.json`);
     const smokePlane = new ControlPlane({ ledger: new Ledger(smokePath) });
     print(await seedDemo(smokePlane, options.cwd || process.cwd()));
   } else if (command === "serve") {
@@ -54,7 +54,7 @@ try {
   } else {
     process.stdout.write(
       [
-        "Codex Thread Orchestration Control Plane",
+        "Codex Task Control Plane",
         "",
         "Usage:",
         "  node scripts/control-plane-cli.mjs preflight --cwd PATH --tools all",
@@ -74,7 +74,7 @@ try {
 
 async function seedDemo(plane, cwd) {
   const run = await plane.createRun({
-    objective: "Demonstrate visible Codex task orchestration with durable control state",
+    objective: "Demonstrate visible Codex task control with durable state",
     executionMode: "dry-run",
     maxRoundTrips: 4
   });
@@ -84,7 +84,7 @@ async function seedDemo(plane, cwd) {
     prompt: "Return a bounded topology and ownership map.",
     role: "architecture",
     cwd,
-    workerMode: "direct",
+    stateControl: "none",
     acceptanceCriteria: ["Native task ownership and controller ownership are distinct"]
   });
   const implementation = await plane.addTask({
@@ -93,8 +93,8 @@ async function seedDemo(plane, cwd) {
     prompt: "Implement the assigned slice and return artifacts plus primary-path evidence.",
     role: "implementation",
     cwd,
-    workerMode: "coding-agent-orchestrator",
-    codingAgentOrchestratorScope: "one isolated implementation workstream",
+    stateControl: "codex-activity-oversight",
+    stateControlScope: "one visible implementation task",
     acceptanceCriteria: ["The first handoff is complete for the declared slice"]
   });
   await plane.simulateTask({
@@ -107,12 +107,12 @@ async function seedDemo(plane, cwd) {
   await plane.simulateTask({
     runId: run.id,
     taskId: implementation.id,
-    summary: "Coding Agent Orchestrator remains scoped inside its visible worker task.",
-    artifacts: ["skills/control-codex-sessions/SKILL.md"],
-    verification: ["dry-run worker-boundary contract passed"]
+    summary: "Codex Activity Oversight remains limited to visible-task state control.",
+    artifacts: ["skills/control-codex-tasks/SKILL.md"],
+    verification: ["dry-run state-control boundary passed"]
   });
-  await plane.decideTask({ runId: run.id, taskId: architecture.id, decision: "accept" });
-  await plane.decideTask({ runId: run.id, taskId: implementation.id, decision: "accept" });
+  await plane.decideTask({ runId: run.id, taskId: architecture.id, decision: "adopt" });
+  await plane.decideTask({ runId: run.id, taskId: implementation.id, decision: "adopt" });
   return plane.snapshot({ runId: run.id });
 }
 

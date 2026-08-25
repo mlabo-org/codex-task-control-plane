@@ -31,4 +31,23 @@ test("dashboard exposes task, thread, operation, and runtime-boundary views", as
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /data-i18n="runtimeBoundary"/);
+  assert.match(html, /Codex Task Control Plane/);
+  assert.match(html, /name="integrationTargetBranch"/);
+  assert.match(html, /name="worktreePurpose"/);
+  assert.match(html, /name="worktreeLifecycleAuthority"/);
+  assert.match(html, /name="stateControlScope"/);
+  assert.doesNotMatch(html, /name="thinking"/);
+  assert.doesNotMatch(html, /name="model"/);
+  assert.doesNotMatch(html, /name="profileAuthority"/);
+  assert.match(html, /data-i18n="settlement"/);
+  assert.match(html, /data-i18n="pin"/);
+});
+
+test("dashboard does not infer worktree completion without cleanup evidence", async () => {
+  const app = await fs.readFile(new URL("app.js", `file://${assetRoot}/`), "utf8");
+  assert.match(app, /task\.settlement\?\.required && task\.status === "completed" && !task\.settlement\.cleanupReceipt/);
+  assert.match(app, /data-action="reconcile"/);
+  assert.match(app, /data-action="adopt"/);
+  assert.match(app, /data-action="continue"/);
+  assert.match(app, /data-action="discard"/);
 });

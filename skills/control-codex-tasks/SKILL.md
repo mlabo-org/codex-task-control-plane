@@ -1,20 +1,20 @@
 ---
-name: control-codex-sessions
-description: Orchestrate user-visible Codex tasks with native thread tools and a durable ledger. Trigger for thread orchestration, スレッドオーケストレーション, 上位管制, cross-thread delegation, Coding Agent Orchestrator (CAO) per task, task handoff, fork, pin, archive, or navigation. Exclude ordinary subagents inside one task.
+name: control-codex-tasks
+description: Control user-visible Codex tasks with native task tools and a durable ledger. Trigger for task control, visible Codex tasks, 上位管制, cross-task delegation, Codex Activity Oversight (CAO) state control, task handoff, fork, pin, archive, or navigation. Exclude ordinary subagents inside one task.
 ---
 
-# Control Codex Sessions
+# Control Codex Tasks
 
 This `SKILL.md` is the local execution contract for this skill when the skill is selected.
 Codex must treat this file's trigger assumptions, workflow, tool boundaries, file boundaries, and output shape as binding instructions within this skill's scope.
 This file does not override system instructions, developer instructions, explicit user requests, applicable `AGENTS.md` files, or more specific local execution contracts.
 
-Use this skill to coordinate independent Codex tasks that the user can see and open in the app. Keep one controller responsible for decomposition, authority, integration, and final acceptance.
+Use this skill to control independent Codex tasks that the user can see and open in the app. Native Codex owns task execution, official subagent dispatch, topology, supervision, and integration; this skill owns only durable task state, validated intents, reconciliation, and visible lifecycle records.
 
 ## Responsibility boundary
 
 - Native `codex_app__*` tools own real task creation, project/worktree selection, messages, waits, reads, forks, handoffs, titles, pins, archive state, and Codex navigation.
-- The `codex_session_control_plane` MCP owns the atomic ledger, validated call intents, task/thread bindings, normalized observations, correlated messages, controller decisions, and dashboard.
+- The `codex_task_control_plane` MCP owns the atomic ledger, validated call intents, task/thread bindings, normalized observations, correlated messages, controller decisions, and dashboard.
 - The active controller calls both surfaces. The MCP server cannot invoke host task tools and must never be described as doing so.
 - Tasks created with `codex_app__create_thread` are user-owned, appear in Codex, and are expected to remain directly accessible to the user.
 - Internal official subagents are a separate layer. Use ordinary subagent delegation instead of this skill when the user only wants work inside the current task.
@@ -23,7 +23,7 @@ Use this skill to coordinate independent Codex tasks that the user can see and o
 
 Identify the currently exposed tool names before planning a live run. Pass them to `control_plane_preflight` with the absolute project path.
 
-Core live orchestration requires all of:
+Core live task control requires all of:
 
 - `codex_app__list_projects`
 - `codex_app__create_thread`
@@ -52,7 +52,7 @@ For a live mutation, pass `confirmLiveAction: true` only when the current reques
 
 Omit `model` and `thinking` by default. Include either only when the current user explicitly chose it, and record `profileAuthority` as `user_request:<concise-reference>`. Do not substitute another model without asking when the requested model is unavailable.
 
-## Create a visible worker task
+## Create a visible task
 
 Follow this sequence for every new top-level worker:
 
@@ -64,7 +64,7 @@ Follow this sequence for every new top-level worker:
 6. Call the returned `codex_app__create_thread` with its arguments unchanged.
 7. Call `control_plane_record_thread_launch` with the returned `threadId`/`hostId`, or with `clientThreadId` when worktree setup is queued.
 
-Target policy is enforced by executable source: `auto` selects `worktree` for a Git project and `local` for a non-Git project. A requested worktree on a non-Git project is invalid. Preserve a requested worktree `startingState` exactly.
+Target policy is enforced by executable source: missing `environment` means `local`, and Git repository presence never selects a worktree. A requested worktree is valid only with `accessMode: write`, an exact target branch, a supported purpose, a `user_request:` lifecycle authority, and the required native handoff/pin/archive capabilities. Unsupported worktree starting-state variants fail closed.
 
 When creation returns only `clientThreadId`:
 
@@ -83,13 +83,7 @@ Normalize each returned task into one of: `running`, `idle`, `completed`, `revie
 
 Use `codex_app__read_thread` only when the wait snapshot lacks result detail needed for the current decision. Prepare and record it through the same two MCP calls. Normalize only the useful result summary, artifacts, verification, blocker, error, and cursor; do not copy unrelated private history into the ledger.
 
-A completed worker moves to controller review. Use `control_plane_decide`:
-
-- `accept` completes that task;
-- `continue` keeps the same visible task available for a follow-up;
-- `fail` records a controller-rejected result.
-
-The run completes only after controller decisions establish all required task outcomes.
+A completed worker moves to controller review. Use `control_plane_decide` with `adopt`, `continue`, or `discard`. A worker result never completes a worktree-backed task. Adoption requires controller-owned handoff, exact target-branch convergence, and cleanup receipts; discard requires deliberate recorded authority and cleanup receipts. `continue` leaves the same visible task nonterminal. Local tasks that do not require settlement may complete after the ordinary controller decision. Reconcile any pending, blocked, conflicted, or orphan-recovery settlement before allowing task or run completion.
 
 ## Native operation matrix
 
@@ -111,7 +105,7 @@ Except for project discovery and initial creation, prepare every native call wit
 | `codex_app__set_thread_archived` | Pass task ID and boolean `archived`; preserve ledger history |
 | `codex_app__navigate_to_codex_page` | Pass task ID; record the successful UI navigation intent |
 
-For `fork_thread`, the native fork copies completed history but does not deliver the new child contract. After binding the child task, prepare `send_message_to_thread` to send its declared prompt before expecting new work. If a worktree fork returns only `clientThreadId`, leave it unbound and report `QUEUED_FORK_BINDING_EVIDENCE_UNAVAILABLE`: the fork call cannot assign the controller marker and current `list_threads` does not expose the client ID. Do not fabricate a binding; continue only from a real `threadId` or a future native result that exposes deterministic evidence.
+For `fork_thread`, the native fork copies completed history but does not deliver the new child contract. Use it only for local tasks in this repair slice. Worktree forks are unsupported because a queued fork cannot be deterministically rebound when only `clientThreadId` is returned. After binding a local child, prepare `send_message_to_thread` to send its declared prompt before expecting new work. If any fork returns only `clientThreadId`, leave it unbound and report `QUEUED_FORK_BINDING_EVIDENCE_UNAVAILABLE`; never fabricate a binding.
 
 For `handoff_thread`, record the returned runtime operation ID first. Then prepare `get_handoff_status`, call it with the recorded revision, and record the result. A running task may be interrupted by the handoff itself; do not claim a separate stop capability.
 
@@ -119,11 +113,9 @@ For `handoff_thread`, record the returned runtime operation ID first. Then prepa
 
 To relay worker A context to worker B, the controller prepares `send_message_to_thread` for B and includes `sourceTaskId: A` plus an appropriate `messageType`. The control ledger retains both task/thread addresses and provenance. Do not instruct workers to discover or steer sibling top-level tasks themselves.
 
-## Coding Agent Orchestrator inside each worker
+## Optional Codex Activity Oversight state control
 
-Use `workerMode: coding-agent-orchestrator` only when the user explicitly selected Coding Agent Orchestrator for that worker or whole fleet. Set `codingAgentOrchestratorScope` to the exact coding slice. The generated prompt invokes `$coding-agent-orchestrator` inside the visible worker, treats the controller's explicit selection as activation, uses the worker's own project/worktree root as the jobsite, inspects related `.coding-agent-orchestrator` continuity state, applies the declared delivery mode, and requires a complete first handoff.
-
-Set a positive `maxDelegationDepth` only with explicit delegation authority recorded as `user_request:<reference>`. Coding Agent Orchestrator subagents remain internal to that visible worker; they are not sibling tasks in the controller ledger.
+Native Codex exclusively owns execution: task creation, official subagent dispatch, topology, supervision, and integration. Set `stateControl: codex-activity-oversight` only when the user explicitly requests `.CAO` state control for that visible task, and provide the exact `stateControlScope`. The generated prompt invokes `$codex-activity-oversight` only for state activation or reconciliation; this skill never owns official subagent depth, authority, model routing, worker execution, or orchestration.
 
 Use `ONE_SHOT_QUALITY` only when the current user explicitly named that mode, and record `deliveryModeAuthority` as `user_request:<reference>`. Otherwise keep `ITERATIVE_DELIVERY`.
 
@@ -137,7 +129,7 @@ Archive only through prepared `codex_app__set_thread_archived`; do not delete th
 
 Use `control_plane_snapshot` for machine-readable state and `control_plane_dashboard_start` for the local observer. The dashboard supports Japanese/English/System and Light/Dark/System preferences. It prepares ledger actions only; native calls still occur in the active controller task.
 
-Authoritative plugin source is the repository containing this skill. The ledger defaults to `~/.codex/session-control-plane/ledger.json`. Installed cache, ledger data, task history, and dashboard preferences are runtime state, not editable source.
+Authoritative plugin source is the repository containing this skill. The ledger defaults to `~/.codex/task-control-plane/ledger.json`; the prior session-control-plane location is read-only migration discovery only. Installed cache, ledger data, task history, and dashboard preferences are runtime state, not editable source.
 
 ## Handoff report
 

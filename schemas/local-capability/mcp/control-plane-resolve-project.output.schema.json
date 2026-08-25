@@ -1,29 +1,207 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-resolve-project-output/v1", "title": "control_plane_resolve_project output", "type": "object", "required": ["operation", "executable", "nextCall"],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-resolve-project-output/v1",
+  "title": "control_plane_resolve_project output",
+  "type": "object",
+  "required": [
+    "operation",
+    "executable",
+    "nextCall"
+  ],
   "properties": {
-    "operation": { "$ref": "#/$defs/operation" },
-    "executable": { "type": "boolean" },
+    "operation": {
+      "$ref": "#/$defs/operation"
+    },
+    "executable": {
+      "type": "boolean"
+    },
     "nextCall": {
       "description": "Prepared native-tool intent for the Codex controller; this MCP server does not invoke it.",
-      "type": "object", "required": ["tool", "arguments"],
+      "type": "object",
+      "required": [
+        "tool",
+        "arguments"
+      ],
       "properties": {
-        "tool": { "const": "codex_app__create_thread" },
+        "tool": {
+          "const": "codex_app__create_thread"
+        },
         "arguments": {
-          "type": "object", "required": ["prompt", "title", "target"],
+          "type": "object",
+          "required": [
+            "prompt",
+            "title",
+            "target"
+          ],
           "properties": {
-            "prompt": { "$ref": "#/$defs/text" }, "title": { "$ref": "#/$defs/text" }, "model": { "$ref": "#/$defs/text" },
-            "thinking": { "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"] },
+            "prompt": {
+              "$ref": "#/$defs/text"
+            },
+            "title": {
+              "$ref": "#/$defs/text"
+            },
+            "model": {
+              "$ref": "#/$defs/text"
+            },
+            "thinking": {
+              "enum": [
+                "none",
+                "minimal",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max",
+                "ultra"
+              ]
+            },
             "target": {
-              "type": "object", "required": ["type", "projectId", "environment"],
+              "type": "object",
+              "required": [
+                "type",
+                "projectId",
+                "environment"
+              ],
               "properties": {
-                "type": { "const": "project" }, "projectId": { "$ref": "#/$defs/text" },
-                "environment": { "oneOf": [ { "type": "object", "required": ["type"], "properties": { "type": { "const": "local" } }, "additionalProperties": false }, { "type": "object", "required": ["type"], "properties": { "type": { "const": "worktree" }, "startingState": { "type": "object" } }, "additionalProperties": false } ] }
-              }, "additionalProperties": false
+                "type": {
+                  "const": "project"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/text"
+                },
+                "environment": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "local"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "worktree"
+                        },
+                        "startingState": {
+                          "type": "object"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
             }
-          }, "additionalProperties": false
+          },
+          "additionalProperties": false
         }
-      }, "additionalProperties": false
+      },
+      "additionalProperties": false
     }
   },
-  "$defs": { "text": { "type": "string", "minLength": 1 }, "operation": { "type": "object", "required": ["id", "kind", "tool", "status", "phase", "taskIds", "childTaskId", "arguments", "metadata", "project", "confirmedAt", "runtimeOperationId", "runtimeRevision", "result", "error", "createdAt", "updatedAt"], "properties": { "id": { "$ref": "#/$defs/text" }, "kind": { "const": "dispatch" }, "tool": { "const": "codex_app__create_thread" }, "status": { "const": "prepared" }, "phase": { "const": "ready" }, "taskIds": { "type": "array", "minItems": 1, "maxItems": 1, "items": { "$ref": "#/$defs/text" } }, "childTaskId": { "type": "null" }, "arguments": { "type": "object" }, "metadata": { "type": "object" }, "project": { "type": "object" }, "confirmedAt": { "type": ["string", "null"], "format": "date-time" }, "runtimeOperationId": { "type": "null" }, "runtimeRevision": { "type": "null" }, "result": { "type": "null" }, "error": { "type": "null" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } }, "additionalProperties": false } }, "additionalProperties": false
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operation": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "tool",
+        "status",
+        "phase",
+        "taskIds",
+        "childTaskId",
+        "arguments",
+        "metadata",
+        "project",
+        "confirmedAt",
+        "runtimeOperationId",
+        "runtimeRevision",
+        "result",
+        "error",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "const": "dispatch"
+        },
+        "tool": {
+          "const": "codex_app__create_thread"
+        },
+        "status": {
+          "const": "prepared"
+        },
+        "phase": {
+          "const": "ready"
+        },
+        "taskIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "childTaskId": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "project": {
+          "type": "object"
+        },
+        "confirmedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "runtimeOperationId": {
+          "type": "null"
+        },
+        "runtimeRevision": {
+          "type": "null"
+        },
+        "result": {
+          "type": "null"
+        },
+        "error": {
+          "type": "null"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
 }

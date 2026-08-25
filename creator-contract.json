@@ -1,19 +1,19 @@
 {
   "schema_version": "creator-contract/v2",
   "kind": "plugin",
-  "capability_id": "codex-thread-orchestration",
+  "capability_id": "codex-task-control-plane",
   "official_creator": "plugin-creator",
   "routing": {
-    "task_class": "Orchestration and lifecycle management of multiple user-visible Codex tasks",
+    "task_class": "Control and lifecycle management of multiple user-visible Codex tasks",
     "natural_language_triggers": [
-      "thread orchestration",
+      "task control",
       "スレッドオーケストレーション",
       "上位管制",
       "create visible Codex tasks",
-      "manage Coding Agent Orchestrator workers in separate tasks",
+      "activate Codex Activity Oversight state control in separate tasks",
       "fork or hand off a Codex task"
     ],
-    "primary_route": "Use $control-codex-sessions with the codex_session_control_plane MCP ledger and the native codex_app task-tool family. Prepare each call in the ledger, execute it in the active controller, then record its normalized outcome.",
+    "primary_route": "Use $control-codex-tasks with the codex_task_control_plane MCP ledger and the native codex_app task-tool family. Prepare each call in the ledger, execute it in the active controller, then record its normalized outcome.",
     "fallback_conditions": [
       "If a core native task tool is absent, report its exact name and offer ordinary official subagents or a configured custom agent only when in-task delegation still satisfies the goal.",
       "If live creation is not currently authorized, return a dry-run topology and do not invoke a native mutation."
@@ -34,7 +34,7 @@
       "trigger_phrases": [
         "create multiple Codex tasks",
         "Codexの画面に別スレッドを作る",
-        "run Coding Agent Orchestrator in each task",
+        "run Codex Activity Oversight in each task",
         "fork this task",
         "hand off this task"
       ],
@@ -46,7 +46,7 @@
         "ledger"
       ],
       "aliases": [
-        "Codex Thread Orchestration",
+        "Codex Task Control Plane",
         "Codex upper control",
         "スレッド管制"
       ]
@@ -54,20 +54,20 @@
     "openai_yaml": {
       "manifests": [
         {
-          "skill_root": "skills/control-codex-sessions",
-          "path": "skills/control-codex-sessions/agents/openai.yaml",
+          "skill_root": "skills/control-codex-tasks",
+          "path": "skills/control-codex-tasks/agents/openai.yaml",
           "document": {
             "interface": {
-              "display_name": "Codex Thread Orchestration",
-              "short_description": "Coordinate visible Codex tasks with durable state",
+              "display_name": "Codex Task Control Plane",
+              "short_description": "Control visible Codex tasks with durable state",
               "brand_color": "#2563EB",
-              "default_prompt": "Use $control-codex-sessions to create a dry-run thread-orchestration plan for visible Codex tasks."
+              "default_prompt": "Use $control-codex-tasks to create a dry-run task-control plan for visible Codex tasks."
             },
             "dependencies": {
               "tools": [
                 {
                   "type": "mcp",
-                  "value": "codex_session_control_plane",
+                  "value": "codex_task_control_plane",
                   "description": "Durable task intents, bindings, observations, decisions, and bilingual dashboard",
                   "transport": "stdio"
                 }
@@ -110,7 +110,7 @@
     },
     {
       "name": "controller acceptance",
-      "description": "Auditable accept, continue, fail, and cancellation-intent decisions without worker self-acceptance."
+      "description": "Auditable adopt, continue, discard, and cancellation-intent decisions without worker self-acceptance; managed worktrees remain nonterminal until settlement receipts pass."
     },
     {
       "name": "loopback dashboard",
@@ -148,7 +148,7 @@
         "queued-thread-binding",
         "observation-and-controller-state",
         "complete-native-management-surface",
-        "coding-agent-orchestrator-worker-boundary",
+        "codex-activity-oversight-state-boundary",
         "atomic-ledger",
         "reader-environment-installation",
         "loopback-dashboard-security",
@@ -171,8 +171,8 @@
   "runtime_boundaries": {
     "source_of_truth": ".",
     "generated_or_runtime_paths": [
-      "~/.codex/session-control-plane/ledger.json",
-      "~/.codex/plugins/cache/local-plugins/codex-thread-orchestration",
+      "~/.codex/task-control-plane/ledger.json",
+      "~/.codex/plugins/cache/local-plugins/codex-task-control-plane",
       "Codex task/worktree runtime state"
     ],
     "forbidden_source_paths": [
@@ -219,7 +219,7 @@
         "enforcement_points": [
           "scripts/lib/native-thread-tools.mjs",
           "scripts/lib/control-plane.mjs",
-          "skills/control-codex-sessions/SKILL.md"
+          "skills/control-codex-tasks/SKILL.md"
         ],
         "tests": [
           "tests/native-thread-tools.test.mjs",
@@ -232,7 +232,7 @@
         "enforcement_points": [
           "scripts/lib/native-thread-tools.mjs",
           "scripts/control-plane-mcp.mjs",
-          "skills/control-codex-sessions/SKILL.md",
+          "skills/control-codex-tasks/SKILL.md",
           "README.md"
         ],
         "tests": [
@@ -253,7 +253,7 @@
       },
       {
         "id": "project-and-profile-binding",
-        "description": "Launch selects one exact local project path, defaults Git to worktree and non-Git to local, and accepts model/thinking overrides only with user_request authority.",
+        "description": "Launch selects one exact local project path and defaults to Local execution; managed worktrees require explicit purpose, lifecycle authority, and target-branch evidence. Model/thinking overrides remain user_request-authorized.",
         "enforcement_points": [
           "scripts/lib/native-thread-tools.mjs",
           "scripts/lib/control-plane.mjs"
@@ -286,11 +286,11 @@
         ]
       },
       {
-        "id": "coding-agent-orchestrator-worker-boundary",
-        "description": "A Coding Agent Orchestrator workflow stays inside its visible worker project/worktree and does not become a sibling-task controller.",
+        "id": "codex-activity-oversight-state-boundary",
+        "description": "Codex Activity Oversight is limited to visible-task .CAO state control and never owns native Codex execution.",
         "enforcement_points": [
           "scripts/lib/native-thread-tools.mjs",
-          "skills/control-codex-sessions/SKILL.md"
+          "skills/control-codex-tasks/SKILL.md"
         ],
         "tests": [
           "tests/native-thread-tools.test.mjs"
@@ -301,7 +301,7 @@
         "description": "Without a native stop tool, the ledger records cancellation intent and reports the required user stop rather than claiming interruption.",
         "enforcement_points": [
           "scripts/lib/control-plane.mjs",
-          "skills/control-codex-sessions/SKILL.md"
+          "skills/control-codex-tasks/SKILL.md"
         ],
         "tests": [
           "tests/control-plane.test.mjs"

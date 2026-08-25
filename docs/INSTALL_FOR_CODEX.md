@@ -1,10 +1,10 @@
-# Install Codex Thread Orchestration with Codex
+# Install Codex Task Control Plane with Codex
 
 This file is the installation execution contract delegated by the repository root `AGENTS.md`. Apply it only after the current user explicitly asks to install, set up, or activate this plugin.
 
 ## Goal and boundaries
 
-Install the authoritative `codex-thread-orchestration` source through the standard personal marketplace and the official Codex CLI. Preserve unrelated user configuration. Never edit an installed plugin cache directly.
+Install the authoritative `codex-task-control-plane` source through the standard personal marketplace and the official Codex CLI. Preserve unrelated user configuration. Never edit an installed plugin cache directly.
 
 The repository must be installable without maintainer-specific absolute paths, private files, remembered setup, or hidden manual steps.
 
@@ -13,7 +13,7 @@ The repository must be installable without maintainer-specific absolute paths, p
 Resolve the current user's home directory from the operating system. The canonical personal-plugin source is:
 
 ```text
-<user-home>/plugins/codex-thread-orchestration
+<user-home>/plugins/codex-task-control-plane
 ```
 
 If the repository is not already at that location:
@@ -32,7 +32,7 @@ Confirm all of the following before mutation:
 - Git is available.
 - Node.js 22 or later is available.
 - `codex` exposes `codex plugin add`, `codex plugin list`, and `codex plugin marketplace list`.
-- `.codex-plugin/plugin.json` names `codex-thread-orchestration` and has a version.
+- `.codex-plugin/plugin.json` names `codex-task-control-plane` and has a version.
 - The current request authorizes local plugin installation and the required personal-marketplace write.
 
 If one is unavailable, stop and report the exact missing prerequisite. Do not invent an alternate cache or configuration route.

@@ -1,10 +1,129 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-preflight-output/v1", "title": "control_plane_preflight output", "type": "object",
-  "required": ["ok", "cwd", "node", "capabilities", "ownership", "constraints"],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-preflight-output/v1",
+  "title": "control_plane_preflight output",
+  "type": "object",
+  "required": [
+    "ok",
+    "cwd",
+    "node",
+    "capabilities",
+    "ownership",
+    "constraints"
+  ],
   "properties": {
-    "ok": { "type": "boolean" }, "cwd": { "$ref": "#/$defs/text" }, "node": { "$ref": "#/$defs/text" },
-    "capabilities": { "type": "object", "required": ["coreReady", "complete", "available", "missingCore", "missingManagement", "required"], "properties": { "coreReady": { "type": "boolean" }, "complete": { "type": "boolean" }, "available": { "$ref": "#/$defs/nativeTools" }, "missingCore": { "$ref": "#/$defs/nativeTools" }, "missingManagement": { "$ref": "#/$defs/nativeTools" }, "required": { "$ref": "#/$defs/nativeTools" } }, "additionalProperties": false },
-    "ownership": { "type": "object", "required": ["nativeTools", "controlPlane", "controller"], "properties": { "nativeTools": { "$ref": "#/$defs/text" }, "controlPlane": { "$ref": "#/$defs/text" }, "controller": { "$ref": "#/$defs/text" } }, "additionalProperties": false },
-    "constraints": { "type": "object", "required": ["pluginInvokesNativeTools", "liveMutationRequiresExplicitConfirmation", "modelOverrideRequiresExplicitUserAuthority", "missingDirectStopTool"], "properties": { "pluginInvokesNativeTools": { "const": false }, "liveMutationRequiresExplicitConfirmation": { "const": true }, "modelOverrideRequiresExplicitUserAuthority": { "const": true }, "missingDirectStopTool": { "const": true } }, "additionalProperties": false }
-  }, "$defs": { "text": { "type": "string", "minLength": 1 }, "nativeTools": { "type": "array", "uniqueItems": true, "items": { "enum": ["codex_app__list_projects", "codex_app__create_thread", "codex_app__list_threads", "codex_app__wait_threads", "codex_app__read_thread", "codex_app__send_message_to_thread", "codex_app__fork_thread", "codex_app__handoff_thread", "codex_app__get_handoff_status", "codex_app__set_thread_title", "codex_app__set_thread_pinned", "codex_app__set_thread_archived", "codex_app__navigate_to_codex_page"] } } }, "additionalProperties": false
+    "ok": {
+      "type": "boolean"
+    },
+    "cwd": {
+      "$ref": "#/$defs/text"
+    },
+    "node": {
+      "$ref": "#/$defs/text"
+    },
+    "capabilities": {
+      "type": "object",
+      "required": [
+        "coreReady",
+        "complete",
+        "available",
+        "missingCore",
+        "missingManagement",
+        "required"
+      ],
+      "properties": {
+        "coreReady": {
+          "type": "boolean"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "available": {
+          "$ref": "#/$defs/nativeTools"
+        },
+        "missingCore": {
+          "$ref": "#/$defs/nativeTools"
+        },
+        "missingManagement": {
+          "$ref": "#/$defs/nativeTools"
+        },
+        "required": {
+          "$ref": "#/$defs/nativeTools"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ownership": {
+      "type": "object",
+      "required": [
+        "nativeTools",
+        "controlPlane",
+        "controller"
+      ],
+      "properties": {
+        "nativeTools": {
+          "$ref": "#/$defs/text"
+        },
+        "controlPlane": {
+          "$ref": "#/$defs/text"
+        },
+        "controller": {
+          "$ref": "#/$defs/text"
+        }
+      },
+      "additionalProperties": false
+    },
+    "constraints": {
+      "type": "object",
+      "required": [
+        "pluginInvokesNativeTools",
+        "liveMutationRequiresExplicitConfirmation",
+        "modelOverrideRequiresExplicitUserAuthority",
+        "missingDirectStopTool"
+      ],
+      "properties": {
+        "pluginInvokesNativeTools": {
+          "const": false
+        },
+        "liveMutationRequiresExplicitConfirmation": {
+          "const": true
+        },
+        "modelOverrideRequiresExplicitUserAuthority": {
+          "const": true
+        },
+        "missingDirectStopTool": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nativeTools": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "codex_app__list_projects",
+          "codex_app__create_thread",
+          "codex_app__list_threads",
+          "codex_app__wait_threads",
+          "codex_app__read_thread",
+          "codex_app__send_message_to_thread",
+          "codex_app__fork_thread",
+          "codex_app__handoff_thread",
+          "codex_app__get_handoff_status",
+          "codex_app__set_thread_title",
+          "codex_app__set_thread_pinned",
+          "codex_app__set_thread_archived",
+          "codex_app__navigate_to_codex_page"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
 }

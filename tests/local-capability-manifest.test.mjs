@@ -22,7 +22,7 @@ test("Local Capability Broker manifest represents every public leaf exactly once
   assert.equal(manifest.packageId, plugin.name);
   assert.equal(manifest.descriptorVersion, packageJson.version);
 
-  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "thread-orchestration-surface-"));
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "task-control-plane-surface-"));
   context.after(() => fs.rm(runtimeRoot, { recursive: true, force: true }));
   const child = spawn(process.execPath, [serverPath], {
     cwd: root,
@@ -40,14 +40,14 @@ test("Local Capability Broker manifest represents every public leaf exactly once
   const directLeaves = manifest.capabilities.filter(
     (capability) => capability.runtimeBinding.kind === "mcp_tool"
   );
-  assert.equal(directLeaves.length, 13);
+  assert.equal(directLeaves.length, 16);
   assert.deepEqual(
     directLeaves.map((capability) => capability.runtimeBinding.tool).sort(),
     publicTools
   );
   assert.ok(
     directLeaves.every(
-      (capability) => capability.runtimeBinding.mcpServer === "codex_session_control_plane"
+      (capability) => capability.runtimeBinding.mcpServer === "codex_task_control_plane"
     )
   );
 
@@ -55,7 +55,7 @@ test("Local Capability Broker manifest represents every public leaf exactly once
     (capability) => capability.runtimeBinding.kind !== "mcp_tool"
   );
   assert.equal(hostLeaves.length, 1);
-  assert.equal(hostLeaves[0].leafId, "control-codex-sessions");
+  assert.equal(hostLeaves[0].leafId, "control-codex-tasks");
   assert.equal(hostLeaves[0].executionClass, "host_coordinator");
   assert.equal(hostLeaves[0].runtimeBinding.kind, "host_coordinator");
   assert.match(hostLeaves[0].runtimeBinding.instruction, /active Codex host/i);
@@ -70,12 +70,12 @@ test("Local Capability Broker manifest represents every public leaf exactly once
     assert.equal(capability.executionClass, expectedClass.get(capability.runtimeBinding.tool));
   }
 
-  assert.equal(new Set(manifest.capabilities.map((capability) => capability.leafId)).size, 14);
+  assert.equal(new Set(manifest.capabilities.map((capability) => capability.leafId)).size, 17);
   const schemaIds = manifest.capabilities.flatMap((capability) => [
     capability.inputSchema.schemaId,
     capability.outputSchema.schemaId
   ]);
-  assert.equal(new Set(schemaIds).size, 28);
+  assert.equal(new Set(schemaIds).size, 34);
   assert.doesNotMatch(JSON.stringify(manifest), /invoke_skill/);
 });
 

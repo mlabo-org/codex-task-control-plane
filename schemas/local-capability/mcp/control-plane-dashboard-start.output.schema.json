@@ -1,3 +1,21 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-dashboard-start-output/v1", "title": "control_plane_dashboard_start output", "type": "object", "required": ["ok", "url"], "properties": { "ok": { "const": true }, "url": { "type": "string", "format": "uri", "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[[0-9a-fA-F:]+\\]):[0-9]+/$" } }, "additionalProperties": false
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-dashboard-start-output/v1",
+  "title": "control_plane_dashboard_start output",
+  "type": "object",
+  "required": [
+    "ok",
+    "url"
+  ],
+  "properties": {
+    "ok": {
+      "const": true
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[[0-9a-fA-F:]+\\]):[0-9]+/$"
+    }
+  },
+  "additionalProperties": false
 }

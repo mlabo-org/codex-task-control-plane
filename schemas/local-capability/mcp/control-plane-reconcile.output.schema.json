@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-reconcile-output/v1",
+  "title": "control_plane_reconcile output",
+  "type": "object",
+  "required": ["at", "records"],
+  "properties": {
+    "at": { "type": "string", "format": "date-time" },
+    "records": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+  },
+  "additionalProperties": false
+}

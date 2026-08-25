@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "codex_session_control_plane": {
+    "codex_task_control_plane": {
       "command": "node",
       "args": [
         "./scripts/control-plane-mcp.mjs"

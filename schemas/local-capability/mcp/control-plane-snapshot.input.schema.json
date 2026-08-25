@@ -1,4 +1,16 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-snapshot-input/v1", "title": "control_plane_snapshot input", "type": "object",
-  "properties": { "runId": { "type": ["string", "null"], "minLength": 1 } }, "additionalProperties": false
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-snapshot-input/v1",
+  "title": "control_plane_snapshot input",
+  "type": "object",
+  "properties": {
+    "runId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
 }

@@ -8,7 +8,7 @@ import { startDashboardServer } from "./lib/dashboard-server.mjs";
 
 const protocolVersion = "2024-11-05";
 const controlPlane = new ControlPlane({
-  ledger: new Ledger(process.env.CODEX_SESSION_CONTROL_PLANE_LEDGER)
+  ledger: new Ledger(process.env.CODEX_TASK_CONTROL_PLANE_LEDGER)
 });
 let dashboard = null;
 
@@ -37,7 +37,7 @@ const tools = new Map([
     "control_plane_create_run",
     {
       description:
-        "Create a durable thread-orchestration run. Dry-run records a plan only; live mode may prepare real native calls when each mutation also has explicit confirmation.",
+        "Create a durable task-control run. Dry-run records a plan only; live mode may prepare real native calls when each mutation also has explicit confirmation.",
       inputSchema: objectSchema(
         {
           objective: { type: "string" },
@@ -55,7 +55,7 @@ const tools = new Map([
     "control_plane_add_task",
     {
       description:
-        "Add one complete worker-task contract. Model/thinking overrides require explicit user_request authority; Coding Agent Orchestrator mode requires a declared coding scope.",
+        "Add one complete visible-task contract. Native Codex owns execution; optional Codex Activity Oversight requires a declared state-control scope.",
       inputSchema: taskInputSchema(),
       handler: (args) => controlPlane.addTask(args)
     }
@@ -73,7 +73,7 @@ const tools = new Map([
     "control_plane_resolve_project",
     {
       description:
-        "Resolve an exact list_projects record into a create_thread call. Git projects default to isolated worktrees and non-Git projects to local execution.",
+        "Resolve an exact list_projects record into a create_thread call. Local execution is the default; managed worktrees require explicit lifecycle authority, purpose, and an exact target branch.",
       inputSchema: objectSchema(
         {
           runId: { type: "string" },
@@ -142,12 +142,12 @@ const tools = new Map([
     "control_plane_decide",
     {
       description:
-        "Record the controller's acceptance decision for a task in review: accept, continue in the same visible task, or fail.",
+        "Record the controller's decision for a task in review: adopt, continue in the same visible task, or discard. Worktree decisions enter settlement and cannot complete before adoption/discard cleanup receipts.",
       inputSchema: objectSchema(
         {
           runId: { type: "string" },
           taskId: { type: "string" },
-          decision: { type: "string", enum: ["accept", "continue", "fail"] },
+          decision: { type: "string", enum: ["adopt", "continue", "discard"] },
           note: { type: "string" }
         },
         ["runId", "taskId", "decision"]
@@ -199,6 +199,36 @@ const tools = new Map([
     }
   ],
   [
+    "control_plane_reconcile",
+    {
+      description: "Reconcile only ledger-owned managed worktrees from durable identity and Git facts; residual or ambiguous state remains nonterminal.",
+      inputSchema: objectSchema({ runId: nullableString() }),
+      handler: (args) => controlPlane.reconcile(args)
+    }
+  ],
+  [
+    "control_plane_record_settlement",
+    {
+      description: "Record verified settlement evidence and keep managed worktree tasks nonterminal until cleanup_verified has a cleanup receipt.",
+      inputSchema: objectSchema({
+        runId: { type: "string" }, taskId: { type: "string" }, phase: { type: "string" },
+        adoptionReceipt: openObject("Machine-generated adoption receipt."),
+        cleanupReceipt: openObject("Machine-generated cleanup receipt."),
+        blocker: openObject("Structured nonterminal blocker."), runtimeCwd: { type: "string" },
+        headAtReview: { type: "string" }, branchAtReview: nullableString(), candidateFingerprint: { type: "string" }
+      }, ["runId", "taskId", "phase"]),
+      handler: (args) => controlPlane.recordSettlement(args)
+    }
+  ],
+  [
+    "control_plane_cleanup_settlement",
+    {
+      description: "Acquire the per-repository lock and remove only the exact recorded managed worktree, then record post-state cleanup evidence.",
+      inputSchema: objectSchema({ runId: { type: "string" }, taskId: { type: "string" }, force: { type: "boolean", default: false } }, ["runId", "taskId"]),
+      handler: (args) => controlPlane.cleanupSettlement(args)
+    }
+  ],
+  [
     "control_plane_dashboard_start",
     {
       description:
@@ -222,24 +252,28 @@ function taskInputSchema() {
       prompt: { type: "string" },
       role: { type: "string" },
       cwd: { type: "string" },
-      environment: { type: "string", enum: ["auto", "local", "worktree"], default: "auto" },
-      startingState: openObject("Optional worktree starting state."),
+      accessMode: { type: "string", enum: ["read", "write"], default: "write" },
+      environment: { type: "string", enum: ["local", "worktree"], default: "local" },
+      integrationTargetBranch: { type: "string" },
+      worktreePurpose: {
+        type: "string",
+        enum: ["same_repo_parallel_write", "destructive_experiment", "explicit_user_isolation"]
+      },
+      worktreeLifecycleAuthority: { type: "string" },
       model: { type: "string" },
       thinking: {
         type: "string",
         enum: ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
       },
       profileAuthority: { type: "string" },
-      workerMode: { type: "string", enum: ["direct", "coding-agent-orchestrator"], default: "direct" },
-      codingAgentOrchestratorScope: { type: "string" },
-      codingAgentOrchestratorDeliveryMode: {
+      stateControl: { type: "string", enum: ["none", "codex-activity-oversight"], default: "none" },
+      stateControlScope: { type: "string" },
+      deliveryMode: {
         type: "string",
         enum: ["ITERATIVE_DELIVERY", "ONE_SHOT_QUALITY"],
         default: "ITERATIVE_DELIVERY"
       },
       deliveryModeAuthority: { type: "string" },
-      maxDelegationDepth: { type: "integer", minimum: 0, maximum: 8, default: 0 },
-      delegationAuthority: { type: "string" },
       acceptanceCriteria: stringArray()
     },
     ["runId", "title", "prompt", "role", "cwd"]
@@ -295,8 +329,8 @@ async function handleRequest(message) {
     sendResult(id, {
       protocolVersion,
       serverInfo: {
-        name: "codex-thread-orchestration",
-        title: "Codex Thread Orchestration Control Plane",
+        name: "codex-task-control-plane",
+        title: "Codex Task Control Plane",
         version: "0.2.0"
       },
       capabilities: { tools: {} }

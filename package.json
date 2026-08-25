@@ -1,24 +1,24 @@
 {
-  "name": "codex-thread-orchestration",
+  "name": "codex-task-control-plane",
   "version": "0.2.0",
-  "description": "Native Codex thread orchestration with visible tasks, durable control state, and Coding Agent Orchestrator worker integration.",
+  "description": "Native Codex task control with visible tasks, durable state, and optional Codex Activity Oversight state control.",
   "private": true,
   "type": "module",
   "license": "MIT",
   "author": "Makoto Suzuki",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mlabo-org/codex-thread-orchestration.git"
+    "url": "https://github.com/mlabo-org/codex-task-control-plane.git"
   },
-  "homepage": "https://github.com/mlabo-org/codex-thread-orchestration#readme",
+  "homepage": "https://github.com/mlabo-org/codex-task-control-plane#readme",
   "bugs": {
-    "url": "https://github.com/mlabo-org/codex-thread-orchestration/issues"
+    "url": "https://github.com/mlabo-org/codex-task-control-plane/issues"
   },
   "keywords": [
     "codex",
-    "thread-orchestration",
+    "task-control-plane",
     "multi-agent",
-    "coding-agent-orchestrator",
+    "codex-activity-oversight",
     "cao",
     "control-plane"
   ],

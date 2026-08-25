@@ -58,7 +58,7 @@ async function handleRequest({ request, response, controlPlane, assetRoot, token
   if (request.method === "GET" && url.pathname === "/api/health") {
     sendJson(response, 200, {
       ok: true,
-      service: "codex-thread-orchestration",
+      service: "codex-task-control-plane",
       role: "ledger-and-intent-dashboard"
     });
     return;
@@ -132,6 +132,14 @@ async function dispatchAction(controlPlane, body) {
       return controlPlane.completeOperation(body.input || {});
     case "decide":
       return controlPlane.decideTask(body.input || {});
+    case "reconcile":
+      if (typeof controlPlane.reconcile !== "function") {
+        const error = new Error("Reconciliation is unavailable in the active control plane");
+        error.code = "RECONCILIATION_UNAVAILABLE";
+        error.statusCode = 409;
+        throw error;
+      }
+      return controlPlane.reconcile(body.input || {});
     case "requestCancel":
       return controlPlane.requestCancel(body.input || {});
     case "simulateTask":

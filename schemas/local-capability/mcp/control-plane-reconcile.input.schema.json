@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-reconcile-input/v1",
+  "title": "control_plane_reconcile input",
+  "type": "object",
+  "properties": { "runId": { "type": ["string", "null"], "minLength": 1 } },
+  "additionalProperties": false
+}

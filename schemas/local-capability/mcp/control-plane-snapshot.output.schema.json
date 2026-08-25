@@ -1,4 +1,162 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "codex-thread-orchestration/mcp/control-plane-snapshot-output/v1", "title": "control_plane_snapshot output", "oneOf": [ { "$ref": "#/$defs/ledger" }, { "$ref": "#/$defs/run" } ],
-  "$defs": { "text": { "type": "string", "minLength": 1 }, "run": { "type": "object", "required": ["id", "objective", "status", "executionMode", "createdAt", "updatedAt", "maxRoundTrips", "controller", "tasks", "threads", "operations", "messages", "events"], "properties": { "id": { "$ref": "#/$defs/text" }, "objective": { "$ref": "#/$defs/text" }, "status": { "enum": ["active", "review", "completed", "failed", "cancelled"] }, "executionMode": { "enum": ["dry-run", "live"] }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" }, "maxRoundTrips": { "type": "integer", "minimum": 1, "maximum": 64 }, "controller": { "type": "object", "required": ["role", "threadId", "hostId"], "properties": { "role": { "const": "controller" }, "threadId": { "type": ["string", "null"] }, "hostId": { "type": ["string", "null"] } }, "additionalProperties": false }, "tasks": { "type": "object", "additionalProperties": { "type": "object" } }, "threads": { "type": "object", "additionalProperties": { "type": "object" } }, "operations": { "type": "object", "additionalProperties": { "type": "object" } }, "messages": { "type": "array", "items": { "type": "object" } }, "events": { "type": "array", "items": { "type": "object" } } }, "additionalProperties": false }, "ledger": { "type": "object", "required": ["schemaVersion", "revision", "updatedAt", "runs"], "properties": { "schemaVersion": { "const": "codex-thread-orchestration-ledger/v2" }, "revision": { "type": "integer", "minimum": 0 }, "updatedAt": { "type": ["string", "null"], "format": "date-time" }, "runs": { "type": "object", "additionalProperties": { "$ref": "#/$defs/run" } } }, "additionalProperties": false } }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/mcp/control-plane-snapshot-output/v1",
+  "title": "control_plane_snapshot output",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ledger"
+    },
+    {
+      "$ref": "#/$defs/run"
+    }
+  ],
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "id",
+        "objective",
+        "status",
+        "executionMode",
+        "createdAt",
+        "updatedAt",
+        "maxRoundTrips",
+        "controller",
+        "tasks",
+        "threads",
+        "operations",
+        "messages",
+        "events"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "objective": {
+          "$ref": "#/$defs/text"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "review",
+            "completed",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "executionMode": {
+          "enum": [
+            "dry-run",
+            "live"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "maxRoundTrips": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "controller": {
+          "type": "object",
+          "required": [
+            "role",
+            "threadId",
+            "hostId"
+          ],
+          "properties": {
+            "role": {
+              "const": "controller"
+            },
+            "threadId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "hostId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "tasks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "threads": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "operations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ledger": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "revision",
+        "updatedAt",
+        "runs"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "codex-task-control-plane-ledger/v2"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updatedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "runs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/run"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }

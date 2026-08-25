@@ -1,10 +1,10 @@
-# Codex Thread Orchestration
+# Codex Task Control Plane
 
 [English](#english) · [日本語](#日本語)
 
-Codex Thread Orchestration is a Codex plugin for coordinating multiple **user-visible Codex tasks** from one controller. Native Codex tools own task creation, worktrees, messaging, waiting, handoff, and sidebar state; the plugin adds a durable control ledger, validated call intents, task state, controller decisions, and a bilingual dashboard.
+Codex Task Control Plane is a Codex plugin for controlling the durable lifecycle of multiple **user-visible Codex tasks**. Native Codex tools own task creation, worktrees, messaging, waiting, handoff, official subagent execution, and sidebar state; this plugin adds a durable control ledger, validated call intents, settlement/reconciliation state, and a bilingual dashboard.
 
-It can also start each visible worker with a `coding-agent-orchestrator` contract, so every isolated task or worktree can run its own bounded Coding Agent Orchestrator workflow without confusing those internal subagents with sibling top-level tasks.
+It can optionally activate `Codex Activity Oversight (CAO)` per visible task for `.CAO` state control. Native Codex exclusively owns official subagent dispatch, topology, supervision, and integration.
 
 ## Article / 解説記事
 
@@ -15,11 +15,11 @@ It can also start each visible worker with a `coding-agent-orchestrator` contrac
 
 This repository is agent-first installable. Give its URL to Codex and paste this request:
 
-> Install Codex Thread Orchestration from https://github.com/mlabo-org/codex-thread-orchestration into my local Codex environment. Read the repository-root AGENTS.md first and follow its installation route. Resolve my own home directory, preserve existing marketplace entries, never edit the installed cache directly, and report the installed version plus the required restart and fresh-task verification.
+> Install Codex Task Control Plane from https://github.com/mlabo-org/codex-task-control-plane into my local Codex environment. Read the repository-root AGENTS.md first and follow its installation route. Resolve my own home directory, preserve existing marketplace entries, never edit the installed cache directly, and report the installed version plus the required restart and fresh-task verification.
 
 このリポジトリは、取得した側の Codex が初見で導入できる構成です。Codex に URL と次の依頼を渡してください。
 
-> https://github.com/mlabo-org/codex-thread-orchestration から Codex Thread Orchestration を私のローカル Codex 環境へインストールして。最初にリポジトリ直下の AGENTS.md を読み、そこに定義された導入経路に従って。私自身のホームディレクトリを解決し、既存 marketplace エントリを保全し、インストール済み cache は直接編集せず、導入されたバージョンと再起動・新規 task での確認手順まで報告して。
+> https://github.com/mlabo-org/codex-task-control-plane から Codex Task Control Plane を私のローカル Codex 環境へインストールして。最初にリポジトリ直下の AGENTS.md を読み、そこに定義された導入経路に従って。私自身のホームディレクトリを解決し、既存 marketplace エントリを保全し、インストール済み cache は直接編集せず、導入されたバージョンと再起動・新規 task での確認手順まで報告して。
 
 The root `AGENTS.md` is deliberately narrow: it activates only for an explicit installation request. Installation mechanics and stop conditions live in `docs/INSTALL_FOR_CODEX.md`; ordinary development and plugin use do not trigger them.
 
@@ -37,14 +37,14 @@ flowchart LR
   C --> N["Native Codex task tools"]
   N --> W1["Visible worker task A"]
   N --> W2["Visible worker task B"]
-  W1 --> A1["Optional CAO subagents"]
-  W2 --> A2["Optional CAO subagents"]
+  W1 --> A1["Optional CAO state control"]
+  W2 --> A2["Optional CAO state control"]
   C <--> L["Control-plane MCP and atomic ledger"]
   L --> D["Local bilingual dashboard"]
 ```
 
 - Native Codex tools create and operate real tasks. Created tasks are user-owned and appear in the Codex task list.
-- The controller calls those tools, normalizes their results, integrates worker output, and owns final acceptance.
+- The controller calls those tools, normalizes their results, and records adoption/discard and cleanup evidence. Native Codex remains the owner of official subagent execution, integration, and task supervision.
 - The MCP server never impersonates the host runtime. It prepares exact calls and records bindings, observations, messages, decisions, and failures.
 - The dashboard is an observer and intent editor. It does not secretly execute host task tools.
 
@@ -68,45 +68,43 @@ The plugin contract covers the complete task-management family currently exposed
 | Archive/unarchive | `codex_app__set_thread_archived` | Mirrors archive state without deleting history |
 | Open in Codex | `codex_app__navigate_to_codex_page` | Records the UI navigation intent |
 
-The host may expose different capabilities across Codex versions. `control_plane_preflight` reports available, missing-core, and missing-management tools before live orchestration.
+The host may expose different capabilities across Codex versions. `control_plane_preflight` reports available, missing-core, and missing-management tools before live task control.
 
-### Orchestration lifecycle
+### Task-control lifecycle
 
 1. Preflight the project and exact visible native tool names.
 2. Create a `dry-run` ledger by default, or a `live` run only from an explicit request to create/manage visible Codex tasks.
-3. Add complete task contracts: role, prompt, absolute project path, environment, workflow, acceptance criteria, and optional profile overrides.
+3. Add complete task contracts: role, prompt, absolute project path, local/worktree environment, access mode, exact target branch, worktree purpose/authority, state-control option, and acceptance criteria.
 4. Prepare dispatch. The controller calls `list_projects`, resolves one exact path, then calls the returned `create_thread` intent.
-5. Record the launch. A Git project defaults to an isolated worktree; a non-Git project defaults to local execution.
+5. Record the launch. Missing environment means Local; a Git project does not imply a worktree. Worktree creation requires explicit lifecycle authority and exact settlement inputs.
 6. Wait in bounded groups, read only when needed, and record normalized observations.
-7. Accept, continue, or fail work through a controller decision. A worker result alone never completes the global run.
+7. Adopt, continue, or discard through a controller decision. Worktree tasks remain nonterminal until exact target-branch convergence and cleanup receipts pass; reconcile pending or blocked settlement before run completion.
 8. Prepare every later management call through the same ledger, execute it with the native tool, and record the outcome.
 
 Model or thinking overrides are omitted by default. They are accepted only when the current user explicitly requested them and the task records a `user_request:...` authority. Live mutations similarly require an explicit confirmation at the control-plane boundary.
 
-### Coding Agent Orchestrator workers
+### Codex Activity Oversight state control
 
-Set `workerMode` to `coding-agent-orchestrator` and provide `codingAgentOrchestratorScope` when a visible worker should run Coding Agent Orchestrator internally. The generated worker prompt explicitly invokes `$coding-agent-orchestrator` and instructs that task to:
+Set `stateControl` to `codex-activity-oversight` and provide `stateControlScope` when a visible task should activate Codex Activity Oversight state control. The generated task prompt invokes `$codex-activity-oversight` only to:
 
-- use its own project/worktree root as the jobsite;
-- inspect and continue related `.coding-agent-orchestrator` continuity state;
-- keep work inside the declared scope and delivery mode;
-- return a complete first handoff with artifacts and verification;
-- keep internal subagents subordinate to that worker task.
+- activate or reconcile the task's `.CAO` state;
+- keep state-control work inside the declared scope;
+- leave task execution, official subagent dispatch, and integration to Native Codex.
 
-Top-level visible tasks and internal subagents are separate layers. The controller owns the former; each Coding Agent Orchestrator worker owns its internal bounded delegation.
+Visible tasks and official subagents are separate layers. Native Codex owns both execution layers; this plugin only records and controls optional `.CAO` state.
 
 ### Requirements and source use
 
 - Codex desktop with the native task tools listed above
 - Node.js 22 or later (Node.js 24 is used in CI)
 - Git for worktree-backed worker isolation
-- Coding Agent Orchestrator only when `workerMode: coding-agent-orchestrator` is explicitly selected
+- Codex Activity Oversight only when `stateControl: codex-activity-oversight` is explicitly selected
 
 The repository has no third-party runtime packages.
 
 ```sh
-git clone https://github.com/mlabo-org/codex-thread-orchestration.git "${HOME}/plugins/codex-thread-orchestration"
-cd "${HOME}/plugins/codex-thread-orchestration"
+git clone https://github.com/mlabo-org/codex-task-control-plane.git "${HOME}/plugins/codex-task-control-plane"
+cd "${HOME}/plugins/codex-task-control-plane"
 npm run check
 npm run plugin:install:check
 npm run plugin:install
@@ -114,17 +112,17 @@ npm run plugin:install
 
 `plugin:install:check` is read-only. `plugin:install` preserves unrelated entries in `~/.agents/plugins/marketplace.json`, refuses a conflicting entry for this plugin, calls the official `codex plugin add` command, and verifies the installed version with `codex plugin list --json`. It never writes the installed cache directly.
 
-The plugin manifest is `.codex-plugin/plugin.json`, the MCP declaration is `.mcp.json`, and the skill is under `skills/control-codex-sessions/`. The complete Codex-facing installation contract is `docs/INSTALL_FOR_CODEX.md`.
+The plugin manifest is `.codex-plugin/plugin.json`, the MCP declaration is `.mcp.json`, and the skill is under `skills/control-codex-tasks/`. The complete Codex-facing installation contract is `docs/INSTALL_FOR_CODEX.md`.
 
 Restart Codex after installation and start a fresh task. Use this non-mutating pickup check:
 
-> Use Codex Thread Orchestration for this project. Run only its capability preflight and return a dry-run summary. Do not create or modify a visible task.
+> Use Codex Task Control Plane for this project. Run only its capability preflight and return a dry-run summary. Do not create or modify a visible task.
 
 Example requests:
 
-> Use Codex Thread Orchestration. Create three visible Codex tasks for this Git project, one worktree per task, and manage them from one controller.
+> Use Codex Task Control Plane. Create three visible Codex tasks for this Git project, one worktree per task, and manage them from one controller.
 
-> Use 上位管制. Give each visible task its own Coding Agent Orchestrator workflow, wait for all results, and return only controller-accepted work.
+> Use 上位管制. Give each visible task optional Codex Activity Oversight state control, wait for all results, and return only controller-accepted work.
 
 ### Dashboard
 
@@ -139,7 +137,7 @@ It binds to loopback only, uses a per-process action token, applies a restrictiv
 The durable ledger defaults to:
 
 ```text
-~/.codex/session-control-plane/ledger.json
+~/.codex/task-control-plane/ledger.json
 ```
 
 Override it with `CODEX_SESSION_CONTROL_PLANE_LEDGER` for an isolated run. Ledger files are private (`0600`) and written by serialized temporary-file, sync, and atomic-rename operations.
@@ -203,37 +201,35 @@ Codex のバージョンによって公開ツールは変わり得ます。ラ�
 2. 既定では `dry-run` 台帳を作ります。画面に見える task の作成・管理を現在のユーザーが明示した場合だけ `live` にします。
 3. 役割、指示、絶対プロジェクトパス、環境、ワークフロー、受け入れ条件を含む完全な task 契約を追加します。
 4. dispatch を準備し、管制役が `list_projects` を呼び、パスが完全一致するプロジェクトを選び、返された `create_thread` 意図を実行します。
-5. 起動結果を記録します。Git プロジェクトは既定で独立 worktree、非 Git プロジェクトは local 実行です。
+5. 起動結果を記録します。環境未指定は Local であり、Git プロジェクトだから worktree になることはありません。worktree には明示的なライフサイクル権限と決済情報が必要です。
 6. task を最大8本ずつ待機し、必要な場合だけ詳細を読み、正規化した観測結果を台帳へ保存します。
-7. 管制役が受理、同一 task で継続、失敗のいずれかを決定します。ワーカーの完了だけで全体は完了しません。
+7. 管制役が採用、同一 task で継続、破棄のいずれかを決定します。worktree task は対象ブランチへの収束と cleanup 証跡が揃うまで非終端です。
 8. 分岐、引継ぎ、名前、ピン、アーカイブ、画面移動も、同じく「意図準備→純正ツール実行→結果記録」で扱います。
 
 モデルや推論深度は既定で上書きしません。現在のユーザーが明示し、task に `user_request:...` の根拠が記録された場合だけ上書きします。ライブ変更も同様に、管制面で明示確認を要求します。
 
-### Coding Agent Orchestrator との融合
+### Codex Activity Oversight 状態管制
 
-画面に見えるワーカー task の中で Coding Agent Orchestrator を動かす場合、`workerMode` を `coding-agent-orchestrator` にし、`codingAgentOrchestratorScope` を指定します。生成される指示は `$coding-agent-orchestrator` を明示的に起動し、その task に次を要求します。
+画面に見える task で Codex Activity Oversight の状態管制を有効にする場合、`stateControl` を `codex-activity-oversight` にし、`stateControlScope` を指定します。生成される指示は `$codex-activity-oversight` を状態管制用途だけで起動します。
 
-- 自分のプロジェクト/worktree ルートを jobsite とする。
-- 関連する既存 `.coding-agent-orchestrator` continuity state を確認して継続する。
-- 宣言済みスコープと delivery mode の内側で作業する。
-- 成果物と検証を含む、責任範囲として完成した初回 handoff を返す。
-- 内部 subagent を、その画面 task の責任下に留める。
+- task の `.CAO` 状態を有効化または整合させる。
+- 状態管制を宣言済みスコープの内側に限定する。
+- task 実行、公式subagent起動、統合はNative Codexに委ねる。
 
-つまり、画面に並ぶトップレベル task と、各 task 内部の subagent は別レイヤーです。前者を上位管制が所有し、後者を各 Coding Agent Orchestrator ワーカーが所有します。
+つまり、画面に並ぶtaskと公式subagentは別レイヤーですが、実行責任はNative Codexにあります。このプラグインは可視taskの状態管制だけを担います。
 
 ### 必要環境とソース利用
 
 - 上記の純正 task ツールを公開している Codex desktop
 - Node.js 22 以降（CI は Node.js 24）
 - worktree 分離を使う場合は Git
-- `workerMode: coding-agent-orchestrator` を明示選択した場合のみ Coding Agent Orchestrator
+- `stateControl: codex-activity-oversight` を明示選択した場合のみ Codex Activity Oversight
 
 外部 runtime package への依存はありません。
 
 ```sh
-git clone https://github.com/mlabo-org/codex-thread-orchestration.git "${HOME}/plugins/codex-thread-orchestration"
-cd "${HOME}/plugins/codex-thread-orchestration"
+git clone https://github.com/mlabo-org/codex-task-control-plane.git "${HOME}/plugins/codex-task-control-plane"
+cd "${HOME}/plugins/codex-task-control-plane"
 npm run check
 npm run plugin:install:check
 npm run plugin:install
@@ -241,17 +237,17 @@ npm run plugin:install
 
 `plugin:install:check` は read-only です。`plugin:install` は `~/.agents/plugins/marketplace.json` 内の無関係なエントリを保全し、このプラグインと競合する参照があれば停止し、公式の `codex plugin add` を呼び、`codex plugin list --json` で導入バージョンを確認します。インストール済み cache を直接書き換えません。
 
-manifest は `.codex-plugin/plugin.json`、MCP 定義は `.mcp.json`、skill は `skills/control-codex-sessions/` にあります。取得先 Codex 向けの完全な導入契約は `docs/INSTALL_FOR_CODEX.md` です。
+manifest は `.codex-plugin/plugin.json`、MCP 定義は `.mcp.json`、skill は `skills/control-codex-tasks/` にあります。取得先 Codex 向けの完全な導入契約は `docs/INSTALL_FOR_CODEX.md` です。
 
 インストール後は Codex を再起動し、新しい task で次の非変更確認を行ってください。
 
-> このプロジェクトで Codex Thread Orchestration を使って。capability preflight だけを実行し、dry-run の要約を返して。画面に見える task は作成・変更しないで。
+> このプロジェクトで Codex Task Control Plane を使って。capability preflight だけを実行し、dry-run の要約を返して。画面に見える task は作成・変更しないで。
 
 依頼例:
 
-> Codex Thread Orchestration を使って、この Git プロジェクトに task を3本作り、taskごとに worktree を分けてひとつの管制役から管理して。
+> Codex Task Control Plane を使って、この Git プロジェクトに task を3本作り、taskごとに worktree を分けてひとつの管制役から管理して。
 
-> 上位管制を使って、各 task の中では Coding Agent Orchestrator を個別に動かし、全結果を待って管制役が受理した成果だけ返して。
+> 上位管制を使って、必要なtaskだけCodex Activity Oversightの状態管制を有効にし、全結果を待って管制役が受理した成果だけ返して。
 
 ### ダッシュボード
 
@@ -264,7 +260,7 @@ localhost/loopback のみに bind し、プロセスごとの操作 token、厳�
 永続台帳の既定位置:
 
 ```text
-~/.codex/session-control-plane/ledger.json
+~/.codex/task-control-plane/ledger.json
 ```
 
 分離した台帳を使う場合は `CODEX_SESSION_CONTROL_PLANE_LEDGER` で変更できます。台帳は `0600` で作成し、更新を直列化したうえで一時ファイル、sync、atomic rename により保存します。

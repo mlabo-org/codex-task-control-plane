@@ -26,7 +26,7 @@ test("capability inventory covers the complete native task family", () => {
   assert.deepEqual(complete.missingManagement, []);
 });
 
-test("task contracts guard model authority and Coding Agent Orchestrator scope", () => {
+test("task contracts guard model authority and optional CAO state scope", () => {
   const base = {
     title: "Worker",
     prompt: "Complete the slice.",
@@ -38,50 +38,61 @@ test("task contracts guard model authority and Coding Agent Orchestrator scope",
     (error) => error.code === "MODEL_AUTHORITY_REQUIRED"
   );
   assert.throws(
-    () => createTaskRecord({ ...base, workerMode: "coding-agent-orchestrator" }, { id: "task_1", at: "now" }),
-    (error) => error.code === "CAO_SCOPE_REQUIRED"
+    () => createTaskRecord({ ...base, stateControl: "codex-activity-oversight" }, { id: "task_1", at: "now" }),
+    (error) => error.code === "STATE_CONTROL_SCOPE_REQUIRED"
   );
   assert.throws(
-    () => createTaskRecord({ ...base, codingAgentOrchestratorDeliveryMode: "ONE_SHOT_QUALITY" }, { id: "task_1", at: "now" }),
+    () => createTaskRecord({ ...base, deliveryMode: "ONE_SHOT_QUALITY" }, { id: "task_1", at: "now" }),
     (error) => error.code === "ONE_SHOT_AUTHORITY_REQUIRED"
   );
   const task = createTaskRecord(
     {
       ...base,
-      workerMode: "coding-agent-orchestrator",
-      codingAgentOrchestratorScope: "src and focused tests",
+      stateControl: "codex-activity-oversight",
+      stateControlScope: "src and focused tests",
       model: "gpt-example",
       thinking: "high",
       profileAuthority: "user_request:explicit model choice",
-      maxDelegationDepth: 1,
-      delegationAuthority: "user_request:one internal worker layer"
     },
     { id: "task_1", at: "now" }
   );
   const preparation = buildDispatchPreparation({ id: "run_1" }, task);
   assert.equal(preparation.createThreadTemplate.model, "gpt-example");
   assert.equal(preparation.createThreadTemplate.thinking, "high");
-  assert.match(preparation.createThreadTemplate.prompt, /Coding Agent Orchestrator workflow/);
-  assert.match(preparation.createThreadTemplate.prompt, /\$coding-agent-orchestrator/);
-  assert.match(preparation.createThreadTemplate.prompt, /\.CAO\/.*legacy `\.coding-agents\/` state/);
-  assert.doesNotMatch(preparation.createThreadTemplate.prompt, /\.coding-agent-orchestrator/);
+  assert.match(preparation.createThreadTemplate.prompt, /Codex Activity Oversight state-control/);
+  assert.match(preparation.createThreadTemplate.prompt, /\$codex-activity-oversight/);
+  assert.doesNotMatch(preparation.createThreadTemplate.prompt, /coding-agent-orchestrator|\.coding-agent-orchestrator/);
   assert.match(preparation.createThreadTemplate.prompt, /src and focused tests/);
   const directTask = createTaskRecord(base, { id: "task_2", at: "now" });
   const directPrompt = buildWorkerPrompt({ id: "run_1" }, directTask);
   assert.doesNotMatch(directPrompt, /Coding Agent Orchestrator workflow|\$coding-agent-orchestrator/);
 });
 
-test("project resolution maps Git to worktree and non-Git to local", () => {
+test("project resolution defaults Git to Local and admits explicit worktree", () => {
   const task = createTaskRecord(
     { title: "Worker", prompt: "Work.", role: "worker", cwd: "/tmp/project" },
     { id: "task_1", at: "now" }
   );
   const preparation = buildDispatchPreparation({ id: "run_1" }, task);
-  const worktree = resolveProjectLaunch(task, preparation, {
+  const localGit = resolveProjectLaunch(task, preparation, {
     projectId: "project-1",
     path: "/tmp/project",
     projectKind: "local",
     isGitRepository: true
+  });
+  assert.equal(localGit.arguments.target.environment.type, "local");
+  const worktreeTask = createTaskRecord({
+    title: "Worker", prompt: "Work.", role: "worker", cwd: "/tmp/project",
+    environment: "worktree", accessMode: "write", worktreePurpose: "explicit_user_isolation",
+    worktreeLifecycleAuthority: "user_request:explicit lifecycle", integrationTargetBranch: "main"
+  }, { id: "task_2", at: "now" });
+  const worktreePreparation = buildDispatchPreparation({ id: "run_1" }, worktreeTask);
+  const worktree = resolveProjectLaunch(worktreeTask, worktreePreparation, {
+    projectId: "project-1",
+    path: "/tmp/project",
+    projectKind: "local",
+    isGitRepository: true,
+    nativeTools: NATIVE_THREAD_TOOLS
   });
   assert.equal(worktree.arguments.target.environment.type, "worktree");
   const local = resolveProjectLaunch(task, preparation, {
@@ -127,7 +138,6 @@ test("every post-launch native tool builds an exact addressed intent", () => {
     ["codex_app__wait_threads", { taskIds: ["task_a", "task_b"], timeoutMs: 10 }, { timeoutMs: 10 }],
     ["codex_app__read_thread", { taskId: "task_a", includeOutputs: true }, { threadId: "thread-a" }],
     ["codex_app__send_message_to_thread", { taskId: "task_a", prompt: "Continue." }, { prompt: "Continue." }],
-    ["codex_app__fork_thread", { taskId: "task_a", environment: "worktree", forkTask: {} }, { threadId: "thread-a" }],
     ["codex_app__handoff_thread", { taskId: "task_a", destinationHostId: "host-b" }, { destinationHostId: "host-b" }],
     ["codex_app__get_handoff_status", { handoffOperationId: "op_handoff", waitMs: 5 }, { operationId: "runtime-1" }],
     ["codex_app__set_thread_title", { taskId: "task_a", title: "New title" }, { title: "New title" }],
@@ -140,6 +150,10 @@ test("every post-launch native tool builds an exact addressed intent", () => {
     assert.equal(intent.tool, tool);
     for (const [key, value] of Object.entries(expected)) assert.deepEqual(intent.arguments[key], value);
   }
+  assert.throws(
+    () => buildNativeOperationIntent({ run, tasks, tool: "codex_app__fork_thread", input: { taskId: "task_a", environment: "worktree", forkTask: {} }, operations }),
+    (error) => error.code === "WORKTREE_FORK_UNSUPPORTED"
+  );
   const wait = buildNativeOperationIntent({
     run,
     tasks,

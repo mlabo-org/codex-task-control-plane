@@ -1,6 +1,5 @@
 .DS_Store
 .CAO/
-.coding-agent-orchestrator/
 .coding-agents/
 node_modules/
 coverage/

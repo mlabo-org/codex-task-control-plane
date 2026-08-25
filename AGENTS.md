@@ -4,7 +4,7 @@ This file is the local `AGENTS.md` SSOT only for routing an explicit request to 
 
 ## Narrow scope
 
-- Trigger this contract only when the current user explicitly asks to install, set up, or activate `codex-thread-orchestration` from this repository.
+- Trigger this contract only when the current user explicitly asks to install, set up, or activate `codex-task-control-plane` from this repository.
 - A request to inspect, explain, review, develop, test, document, or use the repository does not trigger installation.
 - Outside the explicit installation trigger, do not run the installer, edit a marketplace, install or refresh a plugin, change Codex configuration, or add installation-specific process. Follow the current request and other applicable instructions normally.
 - This file does not govern the installed plugin's runtime behavior. The plugin manifest, bundled skill, MCP source, and executable source own that behavior.

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export const PLUGIN_NAME = "codex-thread-orchestration";
+export const PLUGIN_NAME = "codex-task-control-plane";
 export const PLUGIN_SOURCE_PATH = `./plugins/${PLUGIN_NAME}`;
 export const DEFAULT_MARKETPLACE_NAME = "personal";
 export const FALLBACK_MARKETPLACE_NAME = `${PLUGIN_NAME}-local`;
@@ -99,7 +99,7 @@ export function planMarketplace({ marketplaceDocument, configuredMarketplaces, h
     const name = chooseNewMarketplaceName(configured, expectedRoot);
     document = {
       name,
-      interface: { displayName: name === DEFAULT_MARKETPLACE_NAME ? "Personal" : "Codex Thread Orchestration Local" },
+      interface: { displayName: name === DEFAULT_MARKETPLACE_NAME ? "Personal" : "Codex Task Control Plane Local" },
       plugins: []
     };
   } else {

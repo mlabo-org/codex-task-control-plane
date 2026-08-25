@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <meta name="control-plane-token" content="__CONTROL_PLANE_TOKEN__">
-    <title>Codex Thread Orchestration</title>
+    <title>Codex Task Control Plane</title>
     <link rel="stylesheet" href="./macos-local-html.css">
     <link rel="stylesheet" href="./control-plane.css">
   </head>
@@ -13,9 +13,9 @@
     <div class="mlh-app control-app">
       <aside class="mlh-sidebar control-sidebar" aria-label="Control runs">
         <div class="brand-block">
-          <span class="brand-mark" aria-hidden="true">TO</span>
+          <span class="brand-mark" aria-hidden="true">TC</span>
           <div>
-            <strong>Thread Control</strong>
+            <strong>Task Control Plane</strong>
             <small data-i18n="upperControl">Upper Control</small>
           </div>
         </div>
@@ -41,7 +41,7 @@
       <main class="mlh-main control-main">
         <header class="mlh-toolbar control-toolbar">
           <div class="toolbar-title">
-            <p class="eyebrow" data-i18n="controlPlane">Thread orchestration</p>
+            <p class="eyebrow" data-i18n="controlPlane">Codex Task Control Plane</p>
             <h1 id="run-title" data-i18n="noRunSelected">No run selected</h1>
           </div>
           <div class="mlh-toolbar-spacer"></div>
@@ -100,7 +100,7 @@
             <div class="panel-heading"><div><p class="eyebrow" data-i18n="nativeRuntime">Native runtime</p><h2 id="threads-heading" data-i18n="threads">Threads</h2></div></div>
             <div class="mlh-table-wrap">
               <table class="mlh-table control-table">
-                <thead><tr><th data-i18n="thread">Thread</th><th data-i18n="task">Task</th><th data-i18n="environment">Environment</th><th data-i18n="status">Status</th></tr></thead>
+                <thead><tr><th data-i18n="thread">Thread</th><th data-i18n="task">Task</th><th data-i18n="environment">Environment</th><th data-i18n="repository">Repository</th><th data-i18n="runtimePath">Runtime path</th><th data-i18n="settlement">Settlement</th><th data-i18n="pin">Pinned</th><th data-i18n="status">Status</th></tr></thead>
                 <tbody id="thread-rows"></tbody>
               </table>
             </div>
@@ -151,12 +151,13 @@
         <label class="mlh-field"><span data-i18n="prompt">Prompt</span><textarea name="prompt" rows="5" required></textarea></label>
         <label class="mlh-field"><span data-i18n="workingDirectory">Working directory</span><input name="cwd" type="text" required></label>
         <div class="mlh-field-row three">
-          <label class="mlh-field"><span data-i18n="environment">Environment</span><select name="environment"><option value="auto">Auto</option><option value="local">Local</option><option value="worktree">Worktree</option></select></label>
-          <label class="mlh-field"><span data-i18n="workflow">Workflow</span><select name="workerMode"><option value="direct">Direct</option><option value="coding-agent-orchestrator">Coding Agent Orchestrator (CAO)</option></select></label>
-          <label class="mlh-field"><span data-i18n="thinking">Thinking</span><select name="thinking"><option value="">Host default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option><option>ultra</option></select></label>
+          <label class="mlh-field"><span data-i18n="environment">Environment</span><select name="environment"><option value="local" selected>Local</option><option value="worktree">Worktree</option></select></label>
+          <label class="mlh-field"><span data-i18n="accessMode">Access mode</span><select name="accessMode"><option value="write" selected>Write</option><option value="read">Read-only</option></select></label>
+          <label class="mlh-field"><span data-i18n="workflow">Optional state control</span><select name="stateControl"><option value="none">None</option><option value="codex-activity-oversight">Codex Activity Oversight (CAO)</option></select></label>
         </div>
-        <label class="mlh-field"><span data-i18n="codingScope">CAO scope</span><input name="codingAgentOrchestratorScope" type="text"><small class="mlh-help" data-i18n="codingScopeHelp">Required only for Coding Agent Orchestrator workers.</small></label>
-        <div class="mlh-field-row"><label class="mlh-field"><span data-i18n="model">Model override</span><input name="model" type="text" placeholder="Host default"></label><label class="mlh-field"><span data-i18n="authority">Override authority</span><input name="profileAuthority" type="text" placeholder="user_request:..."></label></div>
+        <div class="mlh-field-row"><label class="mlh-field"><span data-i18n="targetBranch">Exact target branch</span><input name="integrationTargetBranch" type="text" placeholder="refs/heads/..." /></label><label class="mlh-field"><span data-i18n="purpose">Worktree purpose</span><input name="worktreePurpose" type="text" placeholder="same_repo_parallel_write" /></label></div>
+        <label class="mlh-field"><span data-i18n="authority">Worktree lifecycle authority</span><input name="worktreeLifecycleAuthority" type="text" placeholder="user_request:..." /></label>
+        <label class="mlh-field"><span data-i18n="codingScope">CAO state scope</span><input name="stateControlScope" type="text"><small class="mlh-help" data-i18n="codingScopeHelp">Required only when Codex Activity Oversight state control is enabled.</small></label>
         <label class="mlh-field"><span data-i18n="criteria">Acceptance criteria</span><textarea name="acceptanceCriteria" rows="3" placeholder="One criterion per line"></textarea></label>
         <div class="dialog-actions"><button class="mlh-button is-quiet" value="cancel" type="submit" data-i18n="cancel">Cancel</button><button class="mlh-button is-primary" value="create" type="submit" data-i18n="addTask">Add task</button></div>
       </form>

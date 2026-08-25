@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/mlabo-org/codex-thread-orchestration/schemas/message.schema.json",
-  "title": "Codex Thread Orchestration Message",
+  "$id": "https://github.com/mlabo-org/codex-task-control-plane/schemas/message.schema.json",
+  "title": "Codex Task Control Plane Message",
   "type": "object",
   "additionalProperties": false,
   "required": [

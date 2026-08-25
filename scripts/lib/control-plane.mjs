@@ -14,6 +14,7 @@ import {
   buildNativeOperationIntent,
   resolveProjectLaunch
 } from "./native-thread-tools.mjs";
+import { acquireSettlementLock, releaseSettlementLock, inspectRepository, removeExactWorktree, removeExactBranch } from "./git-settlement.mjs";
 
 const TERMINAL_TASK_STATES = new Set(["completed", "failed", "cancelled"]);
 const MESSAGE_TYPES = new Set([
@@ -134,7 +135,7 @@ export class ControlPlane {
       threads: {},
       operations: {},
       messages: [],
-      events: [event("RUN_CREATED", "Thread-orchestration run created", { executionMode }, at)]
+      events: [event("RUN_CREATED", "Task-control run created", { executionMode }, at)]
     };
     await this.ledger.update((draft) => {
       draft.runs[id] = run;
@@ -160,6 +161,7 @@ export class ControlPlane {
     } catch (error) {
       throw asControlPlaneError(error);
     }
+    enrichSettlement(task);
     await this.ledger.update((draft) => {
       const run = requireRun(draft, input.runId);
       requireRunOpen(run);
@@ -599,7 +601,7 @@ export class ControlPlane {
   }
 
   async decideTask({ runId, taskId, decision, note = "" }) {
-    if (!["accept", "continue", "fail"].includes(decision)) {
+    if (!["adopt", "continue", "discard"].includes(decision)) {
       throw new ControlPlaneError("INVALID_DECISION", `Unsupported decision: ${decision}`);
     }
     const at = nowIso(this.clock);
@@ -613,9 +615,17 @@ export class ControlPlane {
           `Task ${taskId} is ${task.status}; a controller decision requires review`
         );
       }
-      const nextStatus = decision === "accept" ? "completed" : decision === "continue" ? "idle" : "failed";
+      const worktree = task.target?.environment === "worktree" || task.project?.environment === "worktree";
+      const nextStatus = decision === "continue" ? "idle" : worktree ? "settling" : decision === "adopt" ? "completed" : "failed";
       transition(task, "task", nextStatus, at);
-      if (decision === "fail") {
+      if (worktree) {
+        task.settlement = task.settlement || defaultSettlement(true);
+        task.settlement.required = true;
+        task.settlement.decision = decision;
+        task.settlement.phase = decision === "adopt" ? "integration_pending" : decision === "discard" ? "discard_pending" : "awaiting_decision";
+        task.settlement.terminalStatus = decision === "discard" ? "failed" : null;
+      }
+      if (decision === "discard") {
         task.error = { code: "CONTROLLER_REJECTED", message: note || "Controller rejected result" };
       }
       run.messages.push(
@@ -631,6 +641,88 @@ export class ControlPlane {
       response = structuredClone(task);
     });
     return response;
+  }
+
+  // Reconcile only worktrees already owned by this ledger. This is intentionally
+  // observation-first: it never scans or adopts unrelated repositories.
+  async reconcile({ runId = null } = {}) {
+    const at = nowIso(this.clock);
+    const ledger = await this.ledger.read();
+    const runs = runId ? [requireRun(ledger, runId)] : Object.values(ledger.runs || {});
+    const records = [];
+    for (const run of runs) {
+      for (const task of Object.values(run.tasks || {})) {
+        if (task.target?.environment !== "worktree") continue;
+        enrichSettlement(task);
+        const runtimePath = task.worktree.runtimeCwd || findThreadForTask(run, task)?.runtimeCwd || null;
+        const primaryCheckout = task.git?.primaryCheckout || task.cwd;
+        let inspection = null;
+        let error = null;
+        try {
+          if (runtimePath && path.isAbsolute(primaryCheckout)) inspection = await inspectRepository(primaryCheckout);
+        } catch (cause) {
+          error = { code: cause.code || "GIT_INSPECTION_FAILED", message: cause.message };
+        }
+        const registration = inspection?.worktrees?.find((entry) => runtimePath && filesystemPathEqual(entry.path, runtimePath));
+        const pathExists = Boolean(runtimePath && fsSync.existsSync(runtimePath));
+        let classification = "awaiting_decision";
+        if (error) classification = "ownership_ambiguous";
+        else if (task.settlement?.adoptionReceipt && !pathExists && !registration) classification = "cleanup_verified";
+        else if (["completed", "failed", "cancelled"].includes(task.status) && (pathExists || registration)) classification = "orphan_recovery_required";
+        else if (task.settlement?.phase === "cleanup_pending") classification = "cleanup_pending";
+        else if (task.settlement?.phase === "blocked") classification = "ownership_ambiguous";
+        records.push({ runId: run.id, taskId: task.id, threadId: task.threadId, commonDirectory: inspection?.commonDirectory || task.git?.commonDirectory || null, primaryCheckout, runtimePath, pathExists, registered: Boolean(registration), classification, inspection, error, at });
+      }
+    }
+    return { at, records };
+  }
+
+  async recordSettlement({ runId, taskId, phase, adoptionReceipt = null, cleanupReceipt = null, blocker = null, runtimeCwd = null, headAtReview = null, branchAtReview = null, candidateFingerprint = null }) {
+    const at = nowIso(this.clock);
+    if (typeof phase !== "string" || !phase.trim()) throw new ControlPlaneError("INVALID_SETTLEMENT_PHASE", "phase is required");
+    let result;
+    await this.ledger.update((draft) => {
+      const run = requireRun(draft, runId);
+      const task = requireTask(run, taskId);
+      enrichSettlement(task);
+      task.settlement.phase = phase;
+      if (runtimeCwd) task.worktree.runtimeCwd = path.resolve(runtimeCwd);
+      if (headAtReview) task.worktree.headAtReview = headAtReview;
+      if (branchAtReview !== null) task.worktree.branchAtReview = branchAtReview;
+      if (candidateFingerprint) task.worktree.candidateFingerprint = candidateFingerprint;
+      if (adoptionReceipt) task.settlement.adoptionReceipt = structuredClone(adoptionReceipt);
+      if (cleanupReceipt) task.settlement.cleanupReceipt = structuredClone(cleanupReceipt);
+      task.settlement.blocker = blocker ? structuredClone(blocker) : null;
+      const cleanupVerified = phase === "cleanup_verified" && Boolean(task.settlement.cleanupReceipt);
+      if (cleanupVerified && task.settlement.decision === "adopt") transition(task, "task", "completed", at);
+      else if (cleanupVerified && task.settlement.decision === "discard") transition(task, "task", task.settlement.terminalStatus || "failed", at);
+      else if (task.target.environment === "worktree" && ["completed", "failed", "cancelled"].includes(task.status)) transition(task, "task", "needs_attention", at);
+      recalculateRun(run, at);
+      run.events.push(event("SETTLEMENT_RECORDED", `Settlement ${phase}: ${task.title}`, { taskId, phase }, at));
+      result = structuredClone(task);
+    });
+    return result;
+  }
+
+  async cleanupSettlement({ runId, taskId, force = false }) {
+    const run = await this.snapshot({ runId });
+    const task = requireTask(run, taskId);
+    if (task.target?.environment !== "worktree") throw new ControlPlaneError("SETTLEMENT_NOT_REQUIRED", "Local tasks do not require worktree cleanup");
+    const primaryCheckout = task.git?.primaryCheckout || task.cwd;
+    const runtimePath = task.worktree?.runtimeCwd;
+    const commonDirectory = task.git?.commonDirectory;
+    if (!path.isAbsolute(primaryCheckout) || !path.isAbsolute(runtimePath || "") || !path.isAbsolute(commonDirectory || "")) throw new ControlPlaneError("CLEANUP_IDENTITY_INCOMPLETE", "Exact primary checkout, common directory, and runtime path are required");
+    const lock = await acquireSettlementLock(commonDirectory, { runId, taskId, threadId: task.threadId || null });
+    try {
+      const receipt = await removeExactWorktree({ primaryCheckout, runtimePath, ownerPath: runtimePath, force });
+      const branchReceipt = task.worktree.branchAtReview
+        ? await removeExactBranch({ primaryCheckout, branch: task.worktree.branchAtReview, force })
+        : { branch: null, mode: "not_recorded", forceUsed: false, branchAbsent: true };
+      const verified = receipt.pathAbsent && receipt.registrationAbsent && branchReceipt.branchAbsent;
+      return await this.recordSettlement({ runId, taskId, phase: verified ? "cleanup_verified" : "cleanup_pending", cleanupReceipt: { runId, taskId, threadId: task.threadId || null, commonDirectory, primaryCheckout, runtimePath, decision: task.settlement.decision, authority: task.target.worktreeLifecycleAuthority, ...receipt, branchReceipt } });
+    } finally {
+      await releaseSettlementLock(lock);
+    }
   }
 
   async requestCancel({ runId, taskId, reason }) {
@@ -719,6 +811,13 @@ export class ControlPlane {
   }
 
   async close() {}
+}
+
+function filesystemPathEqual(left, right) {
+  const normalize = (candidate) => {
+    try { return fsSync.realpathSync(candidate); } catch { return path.resolve(candidate); }
+  };
+  return normalize(left) === normalize(right);
 }
 
 function createOperation({
@@ -971,7 +1070,10 @@ function applyObservations(run, operation, observations, at) {
     }
     const task = requireTask(run, observation.taskId);
     const thread = findThreadForTask(run, task);
-    const taskStatus = observation.status === "completed" ? "review" : observation.status;
+    const worktree = task.target?.environment === "worktree" || task.project?.environment === "worktree";
+    const taskStatus = worktree && ["failed", "cancelled"].includes(observation.status)
+      ? "review"
+      : observation.status === "completed" ? "review" : observation.status;
     const threadStatus =
       observation.status === "running"
         ? "active"
@@ -1237,6 +1339,43 @@ function messageEnvelope(run, task, type, payload, options, at) {
       verification: [...provenanceTask.verification]
     }
   };
+}
+
+function defaultSettlement(required = false) {
+  return {
+    required,
+    decision: null,
+    phase: required ? "awaiting_decision" : "not_required",
+    terminalStatus: null,
+    operationIds: [],
+    adoptionReceipt: null,
+    cleanupReceipt: null,
+    blocker: null
+  };
+}
+
+function enrichSettlement(task) {
+  const worktree = task.target?.environment === "worktree";
+  task.git ||= {
+    commonDirectory: null,
+    primaryCheckout: task.cwd,
+    targetBranch: task.target?.integrationTargetBranch || null,
+    targetHeadAtDispatch: null,
+    accessMode: task.target?.accessMode || "write"
+  };
+  task.worktree ||= {
+    managed: worktree,
+    purpose: task.target?.worktreePurpose || null,
+    authority: task.target?.worktreeLifecycleAuthority || null,
+    runtimeCwd: null,
+    threadId: task.threadId || null,
+    clientThreadId: task.clientThreadId || null,
+    pinned: false,
+    headAtReview: null,
+    branchAtReview: null,
+    candidateFingerprint: null
+  };
+  task.settlement ||= defaultSettlement(worktree);
 }
 
 function recalculateRun(run, at) {

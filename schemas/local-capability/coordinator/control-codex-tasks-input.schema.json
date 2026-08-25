@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-task-control-plane/control-codex-tasks-input/v1",
+  "title": "Control Codex Sessions coordinator input",
+  "description": "A complete host-coordination request for one durable user-visible Codex task-control run.",
+  "type": "object",
+  "required": [
+    "objective",
+    "projectPath"
+  ],
+  "properties": {
+    "objective": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The whole-run outcome retained by the active Codex controller."
+    },
+    "projectPath": {
+      "type": "string",
+      "pattern": "^/",
+      "description": "Absolute local project path used for exact project resolution."
+    },
+    "executionMode": {
+      "type": "string",
+      "enum": [
+        "dry-run",
+        "live"
+      ],
+      "default": "dry-run"
+    },
+    "liveAuthorityReference": {
+      "type": "string",
+      "pattern": "^user_request:.+",
+      "description": "Current user-request authority for live visible-task mutations."
+    },
+    "controller": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hostId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "maxRoundTrips": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64,
+      "default": 8
+    },
+    "availableNativeTools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nativeTool"
+      },
+      "uniqueItems": true,
+      "description": "Exact native Codex task tools exposed to the active controller."
+    },
+    "workerTasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workerTask"
+      },
+      "description": "Complete contracts for new user-visible worker tasks, when creation is requested."
+    },
+    "existingRunId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An existing control-plane run to observe or continue instead of creating a new run."
+    },
+    "existingTaskIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "requestedActions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nativeTool"
+      },
+      "uniqueItems": true,
+      "description": "Native task operations the host coordinator may prepare and perform within current authority."
+    },
+    "startDashboard": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "executionMode": {
+            "const": "live"
+          }
+        },
+        "required": [
+          "executionMode"
+        ]
+      },
+      "then": {
+        "required": [
+          "liveAuthorityReference"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "nativeTool": {
+      "type": "string",
+      "enum": [
+        "codex_app__list_projects",
+        "codex_app__create_thread",
+        "codex_app__list_threads",
+        "codex_app__wait_threads",
+        "codex_app__read_thread",
+        "codex_app__send_message_to_thread",
+        "codex_app__fork_thread",
+        "codex_app__handoff_thread",
+        "codex_app__get_handoff_status",
+        "codex_app__set_thread_title",
+        "codex_app__set_thread_pinned",
+        "codex_app__set_thread_archived",
+        "codex_app__navigate_to_codex_page"
+      ]
+    },
+    "workerTask": {
+      "type": "object",
+      "required": [
+        "title",
+        "role",
+        "prompt",
+        "cwd",
+        "acceptanceCriteria"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "local",
+            "worktree"
+          ],
+          "default": "auto"
+        },
+        "startingState": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "const": "working-tree"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "type",
+                "branchName"
+              ],
+              "properties": {
+                "type": {
+                  "const": "branch"
+                },
+                "branchName": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "stateControl": {
+          "type": "string",
+          "enum": [
+            "none",
+            "codex-activity-oversight"
+          ],
+          "default": "none"
+        },
+        "stateControlScope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deliveryMode": {
+          "type": "string",
+          "enum": [
+            "ITERATIVE_DELIVERY",
+            "ONE_SHOT_QUALITY"
+          ],
+          "default": "ITERATIVE_DELIVERY"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "thinking": {
+          "type": "string",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "ultra"
+          ]
+        },
+        "profileAuthority": {
+          "type": "string",
+          "pattern": "^user_request:.+"
+        },
+        "deliveryModeAuthority": {
+          "type": "string",
+          "pattern": "^user_request:.+"
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "stateControl": {
+                "const": "codex-activity-oversight"
+              }
+            },
+            "required": [
+              "stateControl"
+            ]
+          },
+          "then": {
+            "required": [
+              "stateControlScope"
+            ]
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "model"
+                ]
+              },
+              {
+                "required": [
+                  "thinking"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "required": [
+              "profileAuthority"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "deliveryMode": {
+                "const": "ONE_SHOT_QUALITY"
+              }
+            },
+            "required": [
+              "deliveryMode"
+            ]
+          },
+          "then": {
+            "required": [
+              "deliveryModeAuthority"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

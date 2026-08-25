@@ -50,7 +50,7 @@ test("native launch, observation, and controller acceptance complete one visible
     confirmLiveAction: true
   });
   assert.equal(resolved.nextCall.tool, "codex_app__create_thread");
-  assert.equal(resolved.nextCall.arguments.target.environment.type, "worktree");
+  assert.equal(resolved.nextCall.arguments.target.environment.type, "local");
   assert.match(resolved.nextCall.arguments.prompt, /Return one complete result/);
   assert.match(resolved.nextCall.arguments.title, /^\[TO:/);
 
@@ -97,7 +97,7 @@ test("native launch, observation, and controller acceptance complete one visible
   await plane.decideTask({
     runId: run.id,
     taskId: task.id,
-    decision: "accept",
+    decision: "adopt",
     note: "Evidence satisfies the assignment"
   });
   snapshot = await plane.snapshot({ runId: run.id });
@@ -121,7 +121,12 @@ test("queued worktree binding is exact and cancellation remains truthful", async
     title: "Queued worker",
     prompt: "Work after provisioning.",
     role: "worker",
-    cwd: root
+    cwd: root,
+    environment: "worktree",
+    accessMode: "write",
+    worktreePurpose: "explicit_user_isolation",
+    worktreeLifecycleAuthority: "user_request:queued lifecycle",
+    integrationTargetBranch: "main"
   });
   const dispatch = await plane.prepareDispatch({ runId: run.id, taskId: task.id });
   const resolved = await plane.resolveProject({
@@ -328,7 +333,12 @@ test("queued worktree binding with null projectId requires canonical Git common-
     title: "Null project ID worker",
     prompt: "Work after provisioning.",
     role: "worker",
-    cwd: root
+    cwd: root,
+    environment: "worktree",
+    accessMode: "write",
+    worktreePurpose: "explicit_user_isolation",
+    worktreeLifecycleAuthority: "user_request:null-project lifecycle",
+    integrationTargetBranch: "main"
   });
   const dispatch = await plane.prepareDispatch({ runId: run.id, taskId: task.id });
   await plane.resolveProject({
@@ -555,32 +565,23 @@ test("fork, handoff, metadata, archive, and navigation operations remain ledger-
     result: { status: "succeeded" }
   });
 
-  const queuedFork = await plane.prepareOperation({
-    runId: run.id,
-    tool: "codex_app__fork_thread",
-    input: {
-      taskId: task.id,
-      environment: "worktree",
-      forkTask: {
-        title: "Queued fork",
-        prompt: "Continue only after a deterministic native binding is available.",
-        role: "investigation",
-        cwd: root
-      }
-    },
-    confirmLiveAction: true
-  });
-  const queuedForkLaunch = await plane.recordThreadLaunch({
-    runId: run.id,
-    operationId: queuedFork.operation.id,
-    result: { clientThreadId: "client-fork-unexposed" }
-  });
-  assert.equal(queuedForkLaunch.task.status, "provisioning");
-  assert.equal(queuedForkLaunch.task.clientThreadId, "client-fork-unexposed");
-  assert.equal(queuedForkLaunch.next, null);
-  assert.equal(
-    queuedForkLaunch.bindingBlocker.code,
-    "QUEUED_FORK_BINDING_EVIDENCE_UNAVAILABLE"
+  await assert.rejects(
+    plane.prepareOperation({
+      runId: run.id,
+      tool: "codex_app__fork_thread",
+      input: {
+        taskId: task.id,
+        environment: "worktree",
+        forkTask: {
+          title: "Queued fork",
+          prompt: "Worktree forks are disabled until native binding is deterministic.",
+          role: "investigation",
+          cwd: root
+        }
+      },
+      confirmLiveAction: true
+    }),
+    (error) => error.code === "WORKTREE_FORK_UNSUPPORTED"
   );
 
   const handoff = await plane.prepareOperation({
@@ -715,7 +716,8 @@ function gitProject(root) {
     label: "Git project",
     path: root,
     hostId: "host-local",
-    isGitRepository: true
+    isGitRepository: true,
+    nativeTools: NATIVE_THREAD_TOOLS
   };
 }
 

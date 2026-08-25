@@ -17,8 +17,8 @@ const requiredFiles = [
   "creator-contract.json",
   "docs/INSTALL_FOR_CODEX.md",
   "package.json",
-  "skills/control-codex-sessions/SKILL.md",
-  "skills/control-codex-sessions/agents/openai.yaml",
+  "skills/control-codex-tasks/SKILL.md",
+  "skills/control-codex-tasks/agents/openai.yaml",
   "scripts/control-plane-mcp.mjs",
   "scripts/control-plane-cli.mjs",
   "scripts/install-plugin.mjs",
@@ -66,8 +66,8 @@ const creator = await readJson("creator-contract.json");
 const mcp = await readJson(".mcp.json");
 const agents = await read("AGENTS.md");
 const installContract = await read("docs/INSTALL_FOR_CODEX.md");
-const skill = await read("skills/control-codex-sessions/SKILL.md");
-const openai = await read("skills/control-codex-sessions/agents/openai.yaml");
+const skill = await read("skills/control-codex-tasks/SKILL.md");
+const openai = await read("skills/control-codex-tasks/agents/openai.yaml");
 const readme = await read("README.md");
 const nativeSource = await read("scripts/lib/native-thread-tools.mjs");
 const mcpSource = await read("scripts/control-plane-mcp.mjs");
@@ -75,25 +75,25 @@ const installerSource = `${await read("scripts/install-plugin.mjs")}\n${await re
 const gitignore = await read(".gitignore");
 const uiSource = `${await read("assets/dashboard/index.html")}\n${await read("assets/dashboard/app.js")}\n${await read("assets/dashboard/macos-local-html.css")}`;
 
-assert.equal(plugin.name, "codex-thread-orchestration");
+assert.equal(plugin.name, "codex-task-control-plane");
 assert.match(plugin.version, /^0\.2\.0\+codex\.[0-9A-Za-z.-]+$/);
 assert.equal(packageJson.version, "0.2.0");
 assert.equal(plugin.skills, "./skills/");
 assert.equal(plugin.mcpServers, "./.mcp.json");
 assert.equal(packageJson.license, "MIT");
 assert.equal(plugin.license, "MIT");
-assert.equal(plugin.repository, "https://github.com/mlabo-org/codex-thread-orchestration");
-assert.equal(plugin.homepage, "https://github.com/mlabo-org/codex-thread-orchestration#readme");
+assert.equal(plugin.repository, "https://github.com/mlabo-org/codex-task-control-plane");
+assert.equal(plugin.homepage, "https://github.com/mlabo-org/codex-task-control-plane#readme");
 assert.equal(creator.capability_id, plugin.name);
 assert.equal(creator.official_creator, "plugin-creator");
-assert.equal(mcp.mcpServers?.codex_session_control_plane?.command, "node");
-assert.deepEqual(mcp.mcpServers?.codex_session_control_plane?.args, ["./scripts/control-plane-mcp.mjs"]);
+assert.equal(mcp.mcpServers?.codex_task_control_plane?.command, "node");
+assert.deepEqual(mcp.mcpServers?.codex_task_control_plane?.args, ["./scripts/control-plane-mcp.mjs"]);
 
-assert.match(skill, /^---\nname: control-codex-sessions\ndescription:/);
+assert.match(skill, /^---\nname: control-codex-tasks\ndescription:/);
 assert.ok(skill.split("\n").length <= 500, "SKILL.md must remain concise enough for routing context");
-assert.match(openai, /display_name: "Codex Thread Orchestration"/);
-assert.match(openai, /value: "codex_session_control_plane"/);
-assert.match(openai, /\$control-codex-sessions/);
+assert.match(openai, /display_name: "Codex Task Control Plane"/);
+assert.match(openai, /value: "codex_task_control_plane"/);
+assert.match(openai, /\$control-codex-tasks/);
 assert.match(readme, /## English/);
 assert.match(readme, /## 日本語/);
 assert.match(readme, /MIT License/);
@@ -142,9 +142,9 @@ for (const tool of [
 }
 
 assert.doesNotMatch(nativeSource, /node:child_process|\bspawn\s*\(|\bexecFile\s*\(/);
-assert.match(nativeSource, /workerMode === "coding-agent-orchestrator"/);
-assert.match(nativeSource, /environment === "auto"/);
-assert.match(nativeSource, /isGitRepository \? "worktree" : "local"/);
+assert.match(nativeSource, /stateControl === "codex-activity-oversight"/);
+assert.match(nativeSource, /environment === "worktree"/);
+assert.match(nativeSource, /environmentValue/);
 assert.match(uiSource, /control-plane-language/);
 assert.match(uiSource, /control-plane-theme/);
 assert.match(uiSource, /Japanese|日本語/);
@@ -183,7 +183,7 @@ for (const term of supersededTerms) {
   );
 }
 
-process.stdout.write(`thread-orchestration source validation passed (${NATIVE_THREAD_TOOLS.length} native tools)\n`);
+process.stdout.write(`task-control-plane source validation passed (${NATIVE_THREAD_TOOLS.length} native tools)\n`);
 
 function read(relative) {
   return fs.readFile(path.join(root, relative), "utf8");

@@ -15,7 +15,7 @@ test("MCP exposes the complete ledger/intent lifecycle and creates a dry-run", a
   context.after(() => fs.rm(root, { recursive: true, force: true }));
   const child = spawn(process.execPath, [serverPath], {
     cwd: root,
-    env: { ...process.env, CODEX_SESSION_CONTROL_PLANE_LEDGER: path.join(root, "ledger.json") },
+    env: { ...process.env, CODEX_TASK_CONTROL_PLANE_LEDGER: path.join(root, "ledger.json") },
     stdio: ["pipe", "pipe", "pipe"]
   });
   context.after(() => child.kill("SIGTERM"));
@@ -26,7 +26,7 @@ test("MCP exposes the complete ledger/intent lifecycle and creates a dry-run", a
     capabilities: {},
     clientInfo: { name: "test", version: "1" }
   });
-  assert.equal(initialized.serverInfo.name, "codex-thread-orchestration");
+  assert.equal(initialized.serverInfo.name, "codex-task-control-plane");
   assert.equal(initialized.serverInfo.version, "0.2.0");
 
   const listed = await requests.call("tools/list", {});
@@ -44,6 +44,9 @@ test("MCP exposes the complete ledger/intent lifecycle and creates a dry-run", a
     "control_plane_request_cancel",
     "control_plane_simulate_task",
     "control_plane_snapshot",
+    "control_plane_reconcile",
+    "control_plane_record_settlement",
+    "control_plane_cleanup_settlement",
     "control_plane_dashboard_start"
   ]);
 

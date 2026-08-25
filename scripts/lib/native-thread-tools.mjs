@@ -59,8 +59,14 @@ const ALLOWED_THINKING = new Set([
   "ultra"
 ]);
 
-const ALLOWED_WORKER_MODES = new Set(["direct", "coding-agent-orchestrator"]);
-const ALLOWED_ENVIRONMENTS = new Set(["auto", "local", "worktree"]);
+const ALLOWED_STATE_CONTROLS = new Set(["none", "codex-activity-oversight"]);
+const ALLOWED_ENVIRONMENTS = new Set(["local", "worktree"]);
+const ALLOWED_ACCESS_MODES = new Set(["read", "write"]);
+const ALLOWED_WORKTREE_PURPOSES = new Set([
+  "same_repo_parallel_write",
+  "destructive_experiment",
+  "explicit_user_isolation"
+]);
 const ALLOWED_DELIVERY_MODES = new Set(["ITERATIVE_DELIVERY", "ONE_SHOT_QUALITY"]);
 const ALLOWED_MESSAGE_TYPES = new Set([
   "QUESTION",
@@ -102,13 +108,46 @@ export function validateTaskContract(input) {
   if (input.model != null && (typeof input.model !== "string" || !input.model.trim())) {
     throw contractError("INVALID_MODEL", "model must be a non-empty string when provided");
   }
-  const workerMode = input.workerMode || "direct";
-  if (!ALLOWED_WORKER_MODES.has(workerMode)) {
-    throw contractError("INVALID_WORKER_MODE", `Unsupported worker mode: ${workerMode}`);
+  const stateControl = input.stateControl || "none";
+  if (!ALLOWED_STATE_CONTROLS.has(stateControl)) {
+    throw contractError("INVALID_STATE_CONTROL", `Unsupported state control: ${stateControl}`);
   }
-  const environment = input.environment || "auto";
+  const environment = input.environment || "local";
   if (!ALLOWED_ENVIRONMENTS.has(environment)) {
     throw contractError("INVALID_ENVIRONMENT", `Unsupported environment: ${environment}`);
+  }
+  const accessMode = input.accessMode || "write";
+  if (!ALLOWED_ACCESS_MODES.has(accessMode)) {
+    throw contractError("INVALID_ACCESS_MODE", `Unsupported access mode: ${accessMode}`);
+  }
+  if (environment === "worktree") {
+    if (!ALLOWED_WORKTREE_PURPOSES.has(input.worktreePurpose)) {
+      throw contractError(
+        "WORKTREE_PURPOSE_REQUIRED",
+        "worktreePurpose must identify the explicitly authorized worktree lifecycle"
+      );
+    }
+    if (!isUserAuthority(input.worktreeLifecycleAuthority)) {
+      throw contractError(
+        "WORKTREE_AUTHORITY_REQUIRED",
+        "worktreeLifecycleAuthority must begin with user_request:"
+      );
+    }
+    if (
+      typeof input.integrationTargetBranch !== "string" ||
+      !input.integrationTargetBranch.trim()
+    ) {
+      throw contractError(
+        "TARGET_BRANCH_REQUIRED",
+        "worktree tasks require an exact integrationTargetBranch"
+      );
+    }
+    if (input.startingState != null) {
+      throw contractError(
+        "UNSUPPORTED_WORKTREE_STARTING_STATE",
+        "worktree startingState variants are unsupported; use the exact target branch"
+      );
+    }
   }
   if (input.thinking != null && !ALLOWED_THINKING.has(input.thinking)) {
     throw contractError("INVALID_THINKING", `Unsupported reasoning effort: ${input.thinking}`);
@@ -120,7 +159,7 @@ export function validateTaskContract(input) {
     );
   }
   if (input.startingState != null) validateStartingState(input.startingState);
-  const deliveryMode = input.codingAgentOrchestratorDeliveryMode || "ITERATIVE_DELIVERY";
+  const deliveryMode = input.deliveryMode || "ITERATIVE_DELIVERY";
   if (!ALLOWED_DELIVERY_MODES.has(deliveryMode)) {
     throw contractError("INVALID_DELIVERY_MODE", `Unsupported delivery mode: ${deliveryMode}`);
   }
@@ -130,33 +169,14 @@ export function validateTaskContract(input) {
       "ONE_SHOT_QUALITY requires deliveryModeAuthority beginning with user_request:"
     );
   }
-  const depth = input.maxDelegationDepth ?? 0;
-  if (!Number.isInteger(depth) || depth < 0 || depth > 8) {
-    throw contractError(
-      "INVALID_DELEGATION_DEPTH",
-      "maxDelegationDepth must be an integer from 0 to 8"
-    );
-  }
-  if (depth > 0 && workerMode !== "coding-agent-orchestrator") {
-    throw contractError(
-      "DELEGATION_REQUIRES_CAO",
-      "maxDelegationDepth is only meaningful for a Coding Agent Orchestrator worker"
-    );
-  }
-  if (workerMode === "coding-agent-orchestrator") {
+  if (stateControl === "codex-activity-oversight") {
     if (
-      typeof input.codingAgentOrchestratorScope !== "string" ||
-      !input.codingAgentOrchestratorScope.trim()
+      typeof input.stateControlScope !== "string" ||
+      !input.stateControlScope.trim()
     ) {
       throw contractError(
-        "CAO_SCOPE_REQUIRED",
-        "codingAgentOrchestratorScope is required for Coding Agent Orchestrator worker threads"
-      );
-    }
-    if (depth > 0 && !isUserAuthority(input.delegationAuthority)) {
-      throw contractError(
-        "DELEGATION_AUTHORITY_REQUIRED",
-        "positive maxDelegationDepth requires delegationAuthority beginning with user_request:"
+        "STATE_CONTROL_SCOPE_REQUIRED",
+        "stateControlScope is required for Codex Activity Oversight task threads"
       );
     }
   }
@@ -178,7 +198,11 @@ export function createTaskRecord(input, { id, at }) {
     sourceTaskId: input.sourceTaskId || null,
     project: null,
     target: {
-      environment: input.environment || "auto",
+      environment: input.environment || "local",
+      accessMode: input.accessMode || "write",
+      integrationTargetBranch: input.integrationTargetBranch?.trim() || null,
+      worktreePurpose: input.worktreePurpose || null,
+      worktreeLifecycleAuthority: input.worktreeLifecycleAuthority?.trim() || null,
       startingState: input.startingState ? structuredClone(input.startingState) : null
     },
     profile: {
@@ -187,12 +211,10 @@ export function createTaskRecord(input, { id, at }) {
       authority: input.profileAuthority?.trim() || null
     },
     workflow: {
-      mode: input.workerMode || "direct",
-      codingAgentOrchestratorScope: input.codingAgentOrchestratorScope?.trim() || null,
-      deliveryMode: input.codingAgentOrchestratorDeliveryMode || "ITERATIVE_DELIVERY",
-      deliveryModeAuthority: input.deliveryModeAuthority?.trim() || null,
-      maxDelegationDepth: input.maxDelegationDepth ?? 0,
-      delegationAuthority: input.delegationAuthority?.trim() || null
+      stateControl: input.stateControl || "none",
+      stateControlScope: input.stateControlScope?.trim() || null,
+      deliveryMode: input.deliveryMode || "ITERATIVE_DELIVERY",
+      deliveryModeAuthority: input.deliveryModeAuthority?.trim() || null
     },
     acceptanceCriteria: normalizeStringArray(input.acceptanceCriteria),
     createdAt: at,
@@ -253,17 +275,25 @@ export function resolveProjectLaunch(task, operation, project) {
     );
   }
   const isGitRepository = project.isGitRepository === true;
-  let environment = task.target.environment;
-  if (environment === "auto") environment = isGitRepository ? "worktree" : "local";
+  const environment = task.target.environment || "local";
   if (environment === "worktree" && !isGitRepository) {
     throw contractError(
       "WORKTREE_REQUIRES_GIT",
       "The selected project is not a Git repository; use the local environment"
     );
   }
+  if (environment === "worktree") {
+    if (project.isLinkedWorktree === true || project.isPrimaryCheckout === false) {
+      throw contractError(
+        "PRIMARY_CHECKOUT_REQUIRED",
+        "worktree tasks require the repository's authoritative primary checkout"
+      );
+    }
+    validateWorktreeAdmission(task, project.availableNativeTools || project.nativeTools || []);
+  }
   const environmentValue =
     environment === "worktree"
-      ? compactObject({ type: "worktree", startingState: task.target.startingState })
+      ? compactObject({ type: "worktree" })
       : { type: "local" };
   return {
     tool: "codex_app__create_thread",
@@ -373,6 +403,12 @@ export function buildNativeOperationIntent({ run, tasks, tool, input, operations
     const environment = input.environment || "same-directory";
     if (!["same-directory", "worktree"].includes(environment)) {
       throw contractError("INVALID_FORK_ENVIRONMENT", `Unsupported fork environment: ${environment}`);
+    }
+    if (environment === "worktree") {
+      throw contractError(
+        "WORKTREE_FORK_UNSUPPORTED",
+        "worktree fork is disabled until its native task binding is deterministic"
+      );
     }
     return {
       tool,
@@ -488,17 +524,14 @@ export function buildWorkerPrompt(run, task) {
     lines.push("", "Acceptance criteria:");
     for (const criterion of task.acceptanceCriteria) lines.push(`- ${criterion}`);
   }
-  if (task.workflow.mode === "coding-agent-orchestrator") {
+  if (task.workflow.stateControl === "codex-activity-oversight") {
     lines.push(
       "",
-      "Coding Agent Orchestrator workflow:",
-      "- Invoke the installed `$coding-agent-orchestrator` skill for this task; the user explicitly selected it through the controller.",
-      "- Treat this thread's project/worktree root as the Coding Agent Orchestrator jobsite.",
-      "- Inspect existing `.CAO/` workflow state; when it is absent, accept legacy `.coding-agents/` state and resume related state semantically.",
-      `- Keep scope to: ${task.workflow.codingAgentOrchestratorScope}.`,
-      `- Use delivery mode ${task.workflow.deliveryMode}.`,
-      `- Maximum internal subagent delegation depth: ${task.workflow.maxDelegationDepth}.`,
-      "- Coding Agent Orchestrator subagents remain internal to this worker thread; do not confuse them with sibling visible tasks."
+      "Codex Activity Oversight state-control:",
+      "- Native Codex exclusively owns task execution, official subagent dispatch, topology, and integration.",
+      "- Use the installed `$codex-activity-oversight` skill only to activate or reconcile this task's `.CAO/` state.",
+      `- Keep state-control scope to: ${task.workflow.stateControlScope}.`,
+      `- Use delivery mode ${task.workflow.deliveryMode}.`
     );
   }
   return lines.join("\n");
@@ -506,6 +539,40 @@ export function buildWorkerPrompt(run, task) {
 
 export function isUserAuthority(value) {
   return typeof value === "string" && value.startsWith("user_request:") && value.length > 13;
+}
+
+export function validateWorktreeAdmission(task, availableTools = []) {
+  const target = task?.target || task || {};
+  if (target.environment !== "worktree") return true;
+  if (!ALLOWED_WORKTREE_PURPOSES.has(target.worktreePurpose)) {
+    throw contractError("WORKTREE_PURPOSE_REQUIRED", "worktreePurpose is required for worktree mode");
+  }
+  if (!isUserAuthority(target.worktreeLifecycleAuthority)) {
+    throw contractError("WORKTREE_AUTHORITY_REQUIRED", "worktreeLifecycleAuthority must begin with user_request:");
+  }
+  if (typeof target.integrationTargetBranch !== "string" || !target.integrationTargetBranch.trim()) {
+    throw contractError("TARGET_BRANCH_REQUIRED", "worktree mode requires an exact integrationTargetBranch");
+  }
+  if (target.startingState != null) {
+    throw contractError("UNSUPPORTED_WORKTREE_STARTING_STATE", "worktree startingState is unsupported");
+  }
+  const available = new Set(availableTools);
+  const missing = [
+    "codex_app__list_threads",
+    "codex_app__handoff_thread",
+    "codex_app__get_handoff_status",
+    "codex_app__set_thread_pinned",
+    "codex_app__set_thread_archived"
+  ].filter((tool) => !available.has(tool));
+  if (missing.length > 0) {
+    const error = contractError(
+      "WORKTREE_NATIVE_CAPABILITIES_REQUIRED",
+      `worktree mode requires native lifecycle tools: ${missing.join(", ")}`
+    );
+    error.missing = missing;
+    throw error;
+  }
+  return true;
 }
 
 function validateStartingState(value) {
