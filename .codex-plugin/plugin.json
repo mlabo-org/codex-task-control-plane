@@ -1,6 +1,6 @@
 {
   "name": "codex-task-control-plane",
-  "version": "0.2.0+codex.20260815082313",
+  "version": "0.1.0",
   "description": "Control user-visible Codex tasks with native task tools, durable state, controller decisions, and optional Codex Activity Oversight (CAO) state control.",
   "author": {
     "name": "Makoto Suzuki"
