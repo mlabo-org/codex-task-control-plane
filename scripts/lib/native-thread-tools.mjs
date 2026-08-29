@@ -14,7 +14,7 @@ export const MANAGEMENT_NATIVE_THREAD_TOOLS = Object.freeze([
   "codex_app__handoff_thread",
   "codex_app__get_handoff_status",
   "codex_app__set_thread_title",
-  "codex_app__set_thread_pinned",
+  "codex_app__move_thread_to_sidebar_section",
   "codex_app__set_thread_archived",
   "codex_app__navigate_to_codex_page"
 ]);
@@ -33,7 +33,7 @@ export const PREPARABLE_THREAD_TOOLS = Object.freeze([
   "codex_app__handoff_thread",
   "codex_app__get_handoff_status",
   "codex_app__set_thread_title",
-  "codex_app__set_thread_pinned",
+  "codex_app__move_thread_to_sidebar_section",
   "codex_app__set_thread_archived",
   "codex_app__navigate_to_codex_page"
 ]);
@@ -43,7 +43,7 @@ export const MUTATING_THREAD_TOOLS = new Set([
   "codex_app__fork_thread",
   "codex_app__handoff_thread",
   "codex_app__set_thread_title",
-  "codex_app__set_thread_pinned",
+  "codex_app__move_thread_to_sidebar_section",
   "codex_app__set_thread_archived",
   "codex_app__navigate_to_codex_page"
 ]);
@@ -476,14 +476,14 @@ export function buildNativeOperationIntent({ run, tasks, tool, input, operations
       taskIds: [task.id]
     };
   }
-  if (tool === "codex_app__set_thread_pinned") {
+  if (tool === "codex_app__move_thread_to_sidebar_section") {
     const task = requireThreadTask(tasks, input.taskId);
-    if (typeof input.pinned !== "boolean") {
-      throw contractError("INVALID_PINNED", "pinned must be boolean");
+    if (typeof input.sectionId !== "string" || !input.sectionId.trim()) {
+      throw contractError("INVALID_SECTION", "sectionId must be a non-empty string");
     }
     return {
       tool,
-      arguments: { threadId: task.threadId, pinned: input.pinned },
+      arguments: compactObject({ threadId: task.threadId, hostId: task.hostId, sectionId: input.sectionId.trim() }),
       taskIds: [task.id]
     };
   }
@@ -570,7 +570,7 @@ export function validateWorktreeAdmission(task, availableTools = []) {
     "codex_app__list_threads",
     "codex_app__handoff_thread",
     "codex_app__get_handoff_status",
-    "codex_app__set_thread_pinned",
+    "codex_app__move_thread_to_sidebar_section",
     "codex_app__set_thread_archived"
   ].filter((tool) => !available.has(tool));
   if (missing.length > 0) {

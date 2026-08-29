@@ -51,7 +51,7 @@ const POST_COMPLETION_TOOLS = new Set([
   "codex_app__list_threads",
   "codex_app__read_thread",
   "codex_app__set_thread_title",
-  "codex_app__set_thread_pinned",
+  "codex_app__move_thread_to_sidebar_section",
   "codex_app__set_thread_archived",
   "codex_app__navigate_to_codex_page"
 ]);
@@ -606,7 +606,7 @@ export class ControlPlane {
           applyTitleResult(run, operation, result, at);
           finishOperation(operation, "succeeded", result, at);
           break;
-        case "codex_app__set_thread_pinned":
+        case "codex_app__move_thread_to_sidebar_section":
           applyPinnedResult(run, operation, result, at);
           finishOperation(operation, "succeeded", result, at);
           break;
@@ -1388,7 +1388,7 @@ function enforceSettlementNativePreparation(run, task, tool, input) {
       );
     }
   }
-  if (tool === "codex_app__set_thread_pinned" && input.pinned === false) {
+  if (tool === "codex_app__move_thread_to_sidebar_section" && input.sectionId === "threads") {
     const ready = task.settlement.decision === "adopt"
       ? task.settlement.phase === "integration_verified" && Boolean(task.settlement.adoptionReceipt)
       : task.settlement.decision === "discard" && task.settlement.phase === "discard_pending";
@@ -1419,7 +1419,7 @@ function recordSettlementOperationPrepared(task, tool, input, operationId) {
     task.settlement.operationIds.push(operationId);
   }
   if (tool === "codex_app__handoff_thread") task.settlement.phase = "handoff_pending";
-  if (tool === "codex_app__set_thread_pinned" && input.pinned === false) {
+  if (tool === "codex_app__move_thread_to_sidebar_section" && input.sectionId === "threads") {
     task.settlement.phase = "cleanup_pending";
   }
 }
@@ -1697,10 +1697,11 @@ function applyTitleResult(run, operation, result, at) {
 
 function applyPinnedResult(run, operation, result, at) {
   const task = requireTask(run, operation.taskIds[0]);
-  const pinned = result.pinned ?? operation.arguments.pinned;
-  if (typeof pinned !== "boolean") {
-    throw new ControlPlaneError("INVALID_PINNED_RESULT", "pinned result must be boolean");
+  const sectionId = result.sectionId ?? operation.arguments.sectionId;
+  if (typeof sectionId !== "string" || !sectionId.trim()) {
+    throw new ControlPlaneError("INVALID_SECTION_RESULT", "sectionId result must be a non-empty string");
   }
+  const pinned = sectionId === "pinned";
   const thread = findThreadForTask(run, task);
   if (thread) {
     thread.pinned = pinned;
@@ -1713,6 +1714,7 @@ function applyPinnedResult(run, operation, result, at) {
       task.settlement.unpinReceipt = {
         operationId: operation.id,
         threadId: task.threadId,
+        sectionId,
         pinned: false,
         recordedAt: at
       };
@@ -1920,6 +1922,7 @@ function recalculateRun(run, at) {
   if (tasks.every((task) => task.status === "cancelled")) desired = "cancelled";
   else if (tasks.every((task) => ["completed", "cancelled"].includes(task.status))) desired = "completed";
   else if (tasks.every((task) => TERMINAL_TASK_STATES.has(task.status)) && tasks.some((task) => task.status === "failed")) desired = "failed";
+  else if (tasks.some((task) => task.status === "settling")) desired = "settling";
   else if (
     tasks.some((task) => task.status === "review") &&
     tasks.every((task) => task.status === "review" || TERMINAL_TASK_STATES.has(task.status))

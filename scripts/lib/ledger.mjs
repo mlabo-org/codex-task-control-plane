@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import crypto from "node:crypto";
 
 export const LEDGER_SCHEMA_VERSION = "codex-task-control-plane-ledger/v3";
 export const PREVIOUS_LEDGER_SCHEMA_VERSION = "codex-thread-orchestration-ledger/v2";
@@ -48,6 +49,7 @@ function migrationError(message) { const error = new Error(`Malformed v2 ledger:
 
 export class Ledger {
   #queue = Promise.resolve();
+  #lockWaitMs = 10_000;
   constructor(filePath = null) { this.filePath = path.resolve(filePath || defaultLedgerPath()); this.legacyPath = path.resolve(legacyLedgerPath()); this.allowLegacyFallback = filePath == null; }
   async read() {
     try {
@@ -66,7 +68,20 @@ export class Ledger {
     const migrated = migrateLedger(parsed); await this.#writeAtomic(migrated); return structuredClone(migrated);
   }
   async update(mutator) {
-    const operation = this.#queue.then(async () => { const current = await this.read(); const draft = structuredClone(current); const result = await mutator(draft); draft.revision = (current.revision || 0) + 1; draft.updatedAt = new Date().toISOString(); await this.#writeAtomic(draft); return { ledger: structuredClone(draft), result: result === undefined ? null : structuredClone(result) }; });
+    const operation = this.#queue.then(async () => {
+      const lock = await this.#acquireLock();
+      try {
+        const current = await this.read();
+        const draft = structuredClone(current);
+        const result = await mutator(draft);
+        draft.revision = (current.revision || 0) + 1;
+        draft.updatedAt = new Date().toISOString();
+        await this.#writeAtomic(draft);
+        return { ledger: structuredClone(draft), result: result === undefined ? null : structuredClone(result) };
+      } finally {
+        await this.#releaseLock(lock);
+      }
+    });
     this.#queue = operation.catch(() => {}); return operation;
   }
   async replace(next) { return this.update((draft) => { draft.runs = structuredClone(next.runs || {}); return { replaced: true }; }); }
@@ -75,5 +90,54 @@ export class Ledger {
     try { await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, "utf8"); await handle.sync(); } finally { await handle.close(); }
     await fs.rename(tempPath, this.filePath); const directoryHandle = await fs.open(directory, "r"); try { await directoryHandle.sync(); } finally { await directoryHandle.close(); }
   }
+
+  async #acquireLock() {
+    const directory = path.dirname(this.filePath);
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    const lockPath = `${this.filePath}.lock`;
+    const token = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const lock = { pid: process.pid, token, createdAt };
+    const deadline = Date.now() + this.#lockWaitMs;
+    while (true) {
+      try {
+        const handle = await fs.open(lockPath, "wx", 0o600);
+        try { await handle.writeFile(`${JSON.stringify(lock)}\n`, "utf8"); await handle.sync(); }
+        finally { await handle.close(); }
+        return { lockPath, token, createdAt };
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+        await this.#reclaimStaleLock(lockPath);
+        if (Date.now() >= deadline) {
+          const timeout = new Error(`Timed out acquiring ledger lock: ${lockPath}`);
+          timeout.code = "LEDGER_LOCK_TIMEOUT";
+          throw timeout;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+    }
+  }
+
+  async #reclaimStaleLock(lockPath) {
+    let observed;
+    try { observed = JSON.parse(await fs.readFile(lockPath, "utf8")); }
+    catch (error) { if (error.code === "ENOENT") return; return; }
+    if (!Number.isInteger(observed?.pid) || typeof observed.token !== "string" || typeof observed.createdAt !== "string") return;
+    if (isProcessAlive(observed.pid)) return;
+    try {
+      const current = JSON.parse(await fs.readFile(lockPath, "utf8"));
+      if (current.pid !== observed.pid || current.token !== observed.token || current.createdAt !== observed.createdAt) return;
+      await fs.unlink(lockPath);
+    } catch (error) { if (error.code !== "ENOENT") return; }
+  }
+
+  async #releaseLock(lock) {
+    try {
+      const current = JSON.parse(await fs.readFile(lock.lockPath, "utf8"));
+      if (current.token !== lock.token || current.pid !== process.pid || current.createdAt !== lock.createdAt) return;
+      await fs.unlink(lock.lockPath);
+    } catch (error) { if (error.code !== "ENOENT") throw error; }
+  }
 }
+function isProcessAlive(pid) { try { process.kill(pid, 0); return true; } catch (error) { return error.code === "EPERM"; } }
 function isRecord(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }

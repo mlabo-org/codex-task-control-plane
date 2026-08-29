@@ -1,5 +1,5 @@
 export const RUN_TRANSITIONS = Object.freeze({
-  active: new Set(["review", "completed", "failed", "cancelled"]),
+  active: new Set(["review", "settling", "completed", "failed", "cancelled"]),
   review: new Set(["active", "settling", "completed", "failed", "cancelled"]),
   settling: new Set(["active", "review", "completed", "failed", "cancelled"]),
   completed: new Set(),
@@ -18,7 +18,7 @@ export const TASK_TRANSITIONS = Object.freeze({
   review: new Set(["settling", "completed", "idle", "running", "failed", "cancel_requested"]),
   settling: new Set(["settling", "review", "completed", "failed", "cancelled", "needs_attention"]),
   failed: new Set(["prepared", "cancelled"]),
-  cancel_requested: new Set(["running", "failed", "cancelled"]),
+  cancel_requested: new Set(["running", "failed", "cancelled", "review"]),
   completed: new Set(),
   cancelled: new Set()
 });

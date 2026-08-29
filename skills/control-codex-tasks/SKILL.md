@@ -13,7 +13,7 @@ Use this skill to control independent Codex tasks that the user can see and open
 
 ## Responsibility boundary
 
-- Native `codex_app__*` tools own real task creation, project/worktree selection, messages, waits, reads, forks, handoffs, titles, pins, archive state, and Codex navigation.
+- Native `codex_app__*` tools own real task creation, project/worktree selection, messages, waits, reads, forks, handoffs, titles, sidebar sections, archive state, and Codex navigation.
 - The `codex_task_control_plane` MCP owns the atomic ledger, validated call intents, task/thread bindings, normalized observations, correlated messages, controller decisions, and dashboard.
 - The active controller calls both surfaces. The MCP server cannot invoke host task tools and must never be described as doing so.
 - Tasks created with `codex_app__create_thread` are user-owned, appear in Codex, and are expected to remain directly accessible to the user.
@@ -38,7 +38,7 @@ The complete management surface additionally includes:
 - `codex_app__handoff_thread`
 - `codex_app__get_handoff_status`
 - `codex_app__set_thread_title`
-- `codex_app__set_thread_pinned`
+- `codex_app__move_thread_to_sidebar_section`
 - `codex_app__set_thread_archived`
 - `codex_app__navigate_to_codex_page`
 
@@ -75,7 +75,7 @@ When creation returns only `clientThreadId`:
 
 `clientThreadId` remains launch provenance while provisioning but is not list-match evidence because current `list_threads` entries do not expose it. The displayed title may truncate after the complete identity marker, so do not invent a full title. No match leaves the task provisioning; multiple exact environment-specific matches fail closed. Do not bind by recency, a vague title fragment, a guessed ID, fabricated `clientThreadId`/full-title fields, or project label.
 
-Immediately after a worktree task binds to one exact native thread/runtime path, prepare `codex_app__set_thread_pinned` with `pinned: true`, call it, and record the successful result before treating the worktree as safe for execution or review. Keep it pinned until verified adoption or explicit discard reaches the native cleanup boundary.
+Immediately after a worktree task binds to one exact native thread/runtime path, prepare `codex_app__move_thread_to_sidebar_section` with `sectionId: "pinned"`, call it, and record the successful result before treating the worktree as safe for execution or review. Keep it pinned until verified adoption or explicit discard reaches the native cleanup boundary; unpin by moving to `sectionId: "threads"` and record that receipt.
 
 ## Observe and decide
 
@@ -105,7 +105,7 @@ Except for project discovery and initial creation, prepare every native call wit
 | `codex_app__handoff_thread` | Pass task ID, optional destination host, and optional follow-up; record runtime operation ID/revision and pending state |
 | `codex_app__get_handoff_status` | Pass the ledger handoff operation ID; record pending/completed/failed state and any updated thread/host address |
 | `codex_app__set_thread_title` | Pass task ID and title; mirror the successful title in task/thread records |
-| `codex_app__set_thread_pinned` | Pass task ID and boolean `pinned`; mirror the successful state |
+| `codex_app__move_thread_to_sidebar_section` | Pass task ID and `sectionId` (`pinned` or `threads`); derive and mirror the successful state |
 | `codex_app__set_thread_archived` | Pass task ID and boolean `archived`; preserve ledger history |
 | `codex_app__navigate_to_codex_page` | Pass task ID; record the successful UI navigation intent |
 

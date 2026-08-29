@@ -30,6 +30,31 @@ test("v3 ledger serializes concurrent updates and persists atomically", async (c
   );
 });
 
+test("separate Ledger instances serialize the complete read-mutate-write cycle", async (context) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-control-ledger-process-lock-"));
+  context.after(() => fs.rm(root, { recursive: true, force: true }));
+  const filePath = path.join(root, "ledger.json");
+  const first = new Ledger(filePath);
+  const second = new Ledger(filePath);
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 40));
+
+  await Promise.all([
+    first.update(async (draft) => {
+      await pause();
+      draft.runs.first = { id: "first" };
+    }),
+    second.update(async (draft) => {
+      await pause();
+      draft.runs.second = { id: "second" };
+    }),
+  ]);
+
+  const snapshot = await first.read();
+  assert.equal(snapshot.revision, 2);
+  assert.deepEqual(Object.keys(snapshot.runs).sort(), ["first", "second"]);
+  assert.deepEqual(await fs.readdir(root), ["ledger.json"]);
+});
+
 test("a superseded ledger is rejected instead of silently migrated", async (context) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-control-old-ledger-"));
   context.after(() => fs.rm(root, { recursive: true, force: true }));

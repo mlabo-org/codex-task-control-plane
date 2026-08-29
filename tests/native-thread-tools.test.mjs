@@ -141,7 +141,7 @@ test("every post-launch native tool builds an exact addressed intent", () => {
     ["codex_app__handoff_thread", { taskId: "task_a", destinationHostId: "host-b" }, { destinationHostId: "host-b" }],
     ["codex_app__get_handoff_status", { handoffOperationId: "op_handoff", waitMs: 5 }, { operationId: "runtime-1" }],
     ["codex_app__set_thread_title", { taskId: "task_a", title: "New title" }, { title: "New title" }],
-    ["codex_app__set_thread_pinned", { taskId: "task_a", pinned: true }, { pinned: true }],
+    ["codex_app__move_thread_to_sidebar_section", { taskId: "task_a", sectionId: "pinned" }, { sectionId: "pinned" }],
     ["codex_app__set_thread_archived", { taskId: "task_a", archived: true }, { archived: true }],
     ["codex_app__navigate_to_codex_page", { taskId: "task_a" }, { threadId: "thread-a" }]
   ];

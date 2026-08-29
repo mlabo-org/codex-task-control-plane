@@ -22,7 +22,7 @@
         "codex_app__handoff_thread",
         "codex_app__get_handoff_status",
         "codex_app__set_thread_title",
-        "codex_app__set_thread_pinned",
+        "codex_app__move_thread_to_sidebar_section",
         "codex_app__set_thread_archived",
         "codex_app__navigate_to_codex_page"
       ]

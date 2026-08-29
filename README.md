@@ -64,7 +64,7 @@ The plugin contract covers the complete task-management family currently exposed
 | Hand off a task | `codex_app__handoff_thread` | Records the asynchronous operation and handoff state |
 | Follow a handoff | `codex_app__get_handoff_status` | Advances the recorded handoff by operation ID and revision |
 | Rename | `codex_app__set_thread_title` | Keeps task and ledger titles aligned |
-| Pin/unpin | `codex_app__set_thread_pinned` | Mirrors pin state in the ledger |
+| Pin/unpin | `codex_app__move_thread_to_sidebar_section` | Pass `sectionId: "pinned"` to pin or `"threads"` to unpin; derive ledger state from the successful section |
 | Archive/unarchive | `codex_app__set_thread_archived` | Mirrors archive state without deleting history |
 | Open in Codex | `codex_app__navigate_to_codex_page` | Records the UI navigation intent |
 
@@ -190,7 +190,7 @@ The automated suite uses normalized fake native-tool results and never creates a
 | 引継ぎ | `codex_app__handoff_thread` | 非同期 operation と引継ぎ状態を記録 |
 | 引継ぎ追跡 | `codex_app__get_handoff_status` | operation ID と revision で進行を追跡 |
 | 名前変更 | `codex_app__set_thread_title` | Codex と台帳のタイトルを同期 |
-| ピン留め | `codex_app__set_thread_pinned` | ピン状態を台帳へ反映 |
+| ピン留め | `codex_app__move_thread_to_sidebar_section` | `sectionId: "pinned"` で固定、`"threads"` で解除し、成功結果から台帳状態を導出 |
 | アーカイブ | `codex_app__set_thread_archived` | 履歴を削除せず保管状態を反映 |
 | Codex 画面で開く | `codex_app__navigate_to_codex_page` | UI ナビゲーション意図を記録 |
 

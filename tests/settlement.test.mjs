@@ -19,6 +19,7 @@ test("adopt captures, hands off, commits to the exact target, archives, and remo
     decision: "adopt"
   });
   assert.equal(adopted.status, "settling");
+  assert.equal((await fixture.plane.snapshot({ runId: fixture.run.id })).status, "settling");
   assert.equal(adopted.settlement.phase, "handoff_preflight");
   assert.deepEqual(adopted.worktree.candidateCapture.changedPaths, ["accepted.txt"]);
 
@@ -404,14 +405,14 @@ async function handoffToLocal(fixture, runtimeOperationId) {
 async function unpinAndArchive(fixture) {
   const unpin = await fixture.plane.prepareOperation({
     runId: fixture.run.id,
-    tool: "codex_app__set_thread_pinned",
-    input: { taskId: fixture.task.id, pinned: false },
+    tool: "codex_app__move_thread_to_sidebar_section",
+    input: { taskId: fixture.task.id, sectionId: "threads" },
     confirmLiveAction: true
   });
   await fixture.plane.completeOperation({
     runId: fixture.run.id,
     operationId: unpin.operation.id,
-    result: { pinned: false }
+    result: { sectionId: "threads" }
   });
   const archive = await fixture.plane.prepareOperation({
     runId: fixture.run.id,

@@ -160,6 +160,8 @@
         "tests/dashboard.test.mjs",
         "tests/installer.test.mjs",
         "tests/ledger.test.mjs",
+        "tests/settlement.test.mjs",
+        "tests/local-capability-manifest.test.mjs",
         "tests/mcp.test.mjs",
         "tests/state-machine.test.mjs",
         "tests/ui-contract.test.mjs"

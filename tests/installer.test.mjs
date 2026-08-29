@@ -13,7 +13,7 @@ import {
   writeJsonAtomic
 } from "../scripts/lib/plugin-installer.mjs";
 
-const manifest = { name: PLUGIN_NAME, version: "0.2.0+codex.test" };
+const manifest = { name: PLUGIN_NAME, version: "0.1.0" };
 
 test("first install creates a complete personal marketplace entry", () => {
   const homeDir = path.join(path.sep, "home", "reader");

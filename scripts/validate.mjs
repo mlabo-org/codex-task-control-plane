@@ -78,7 +78,9 @@ const gitignore = await read(".gitignore");
 const uiSource = `${await read("assets/dashboard/index.html")}\n${await read("assets/dashboard/app.js")}\n${await read("assets/dashboard/macos-local-html.css")}`;
 
 assert.equal(plugin.name, "codex-task-control-plane");
-assert.match(plugin.version, /^0\.2\.0\+codex\.[0-9A-Za-z.-]+$/);
+// The plugin manifest version is Codex's local compatibility/cache placement
+// value. The product release version is owned separately by package.json.
+assert.equal(plugin.version, "0.1.0");
 assert.equal(packageJson.version, "0.2.0");
 assert.equal(plugin.skills, "./skills/");
 assert.equal(plugin.mcpServers, "./.mcp.json");

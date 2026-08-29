@@ -316,6 +316,18 @@ test("queued worktree binding is exact and cancellation remains truthful", async
   assert.equal(cancelled.task.status, "cancel_requested");
   assert.equal(cancelled.humanStopRequired, true);
   assert.match(cancelled.guidance, /Stop the visible Codex task/);
+
+  const stopped = await plane.prepareOperation({
+    runId: run.id,
+    tool: "codex_app__read_thread",
+    input: { taskId: task.id }
+  });
+  await plane.completeOperation({
+    runId: run.id,
+    operationId: stopped.operation.id,
+    result: { observations: [{ taskId: task.id, status: "cancelled", summary: "Stopped by user" }] }
+  });
+  assert.equal((await plane.snapshot({ runId: run.id })).tasks[task.id].status, "review");
 });
 
 test("queued worktree binding with null projectId requires canonical Git common-directory identity", async (context) => {
@@ -519,10 +531,10 @@ test("fork, handoff, metadata, archive, and navigation operations remain ledger-
     title: "Renamed worker"
   }, { title: "Renamed worker" });
   assert.equal(title.tasks[0].threadTitle, "Renamed worker");
-  await prepareAndComplete(plane, run.id, "codex_app__set_thread_pinned", {
+  await prepareAndComplete(plane, run.id, "codex_app__move_thread_to_sidebar_section", {
     taskId: task.id,
-    pinned: true
-  }, { pinned: true });
+    sectionId: "pinned"
+  }, { sectionId: "pinned" });
   await prepareAndComplete(plane, run.id, "codex_app__navigate_to_codex_page", {
     taskId: task.id
   }, { summary: "opened" });
