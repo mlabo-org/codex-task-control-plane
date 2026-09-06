@@ -20,7 +20,7 @@ const translations = {
     inspection: "Inspection", resultAndArtifacts: "Result & artifacts", selectTask: "Select a task", selectTaskHelp: "Choose a task row to inspect its contract and evidence.",
     audit: "Audit", eventTimeline: "Event timeline", newControlRun: "New control run", objective: "Objective", mode: "Mode", maxRounds: "Max round trips",
     controllerThread: "Controller thread ID", cancel: "Cancel", create: "Create", addControlledTask: "Add controlled task", title: "Title", prompt: "Prompt",
-    workingDirectory: "Working directory", codingScope: "CAO state scope", codingScopeHelp: "Optional; use only when Codex Activity Oversight state control is explicitly requested.",
+    workingDirectory: "Working directory", codingScope: "CAO state scope", codingScopeHelp: "Optional; provide when the user or controller selects Codex Activity Oversight state control.",
     model: "Model override", authority: "Override authority", criteria: "Acceptance criteria", prepare: "Prepare", simulate: "Simulate", adopt: "Adopt", discard: "Discard", continue: "Continue", requestCancel: "Cancel request",
     evidence: "Verification", artifacts: "Artifacts", result: "Result", contract: "Contract", noEvidence: "No verification evidence", noArtifacts: "No artifacts",
     reconcile: "Reconcile", integrate: "Integrate", cleanup: "Clean up", actionCompleted: "Action completed", actionFailed: "Action failed", loadFailed: "Could not load control-plane state"
@@ -36,7 +36,7 @@ const translations = {
     inspection: "詳細", resultAndArtifacts: "結果と成果物", selectTask: "タスクを選択", selectTaskHelp: "行を選ぶと契約と証跡を確認できます。",
     audit: "監査", eventTimeline: "イベント履歴", newControlRun: "新規管制Run", objective: "目的", mode: "モード", maxRounds: "最大往復数",
     controllerThread: "管制スレッドID", cancel: "キャンセル", create: "作成", addControlledTask: "管制タスクを追加", title: "タイトル", prompt: "指示",
-    workingDirectory: "作業ディレクトリ", codingScope: "CAO状態スコープ", codingScopeHelp: "Codex Activity Oversightの状態管制を明示的に要求した場合だけ任意指定します。",
+    workingDirectory: "作業ディレクトリ", codingScope: "CAO状態スコープ", codingScopeHelp: "ユーザーまたは管制役がCodex Activity Oversightの状態管制を選んだ場合に指定します。",
     model: "モデル上書き", authority: "上書き根拠", criteria: "受け入れ条件", prepare: "準備", simulate: "模擬完了", adopt: "採用", discard: "破棄", continue: "継続", requestCancel: "取消要求",
     evidence: "検証証跡", artifacts: "成果物", result: "結果", contract: "契約", noEvidence: "検証証跡なし", noArtifacts: "成果物なし",
     reconcile: "整合", integrate: "統合", cleanup: "後片付け", actionCompleted: "操作が完了しました", actionFailed: "操作に失敗しました", loadFailed: "管制状態を読み込めませんでした"

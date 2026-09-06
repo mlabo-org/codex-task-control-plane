@@ -119,7 +119,7 @@ To relay worker A context to worker B, the controller prepares `send_message_to_
 
 ## Optional Codex Activity Oversight state control
 
-Native Codex exclusively owns execution: task creation, official subagent dispatch, topology, supervision, and integration. Set `stateControl: codex-activity-oversight` only when the user explicitly requests `.CAO` state control for that visible task, and provide the exact `stateControlScope`. The generated prompt invokes `$codex-activity-oversight` only for state activation or reconciliation; this skill never owns official subagent depth, authority, model routing, worker execution, or orchestration.
+Native Codex exclusively owns execution: task creation, official subagent dispatch, topology, supervision, and integration. `stateControl` defaults to `none`, but the active controller may select `codex-activity-oversight` when durable state materially helps the visible task, such as a long-running or interruptible task, a complex refactor, or a planned resume. Honor an explicit user choice of `none`; an explicit request for `.CAO` state control also selects it. Whenever it is selected, provide the exact `stateControlScope`. The generated prompt invokes `$codex-activity-oversight` only for state activation or reconciliation; this skill never owns official subagent depth, authority, model routing, worker execution, or orchestration.
 
 Use `ONE_SHOT_QUALITY` only when the current user explicitly named that mode, and record `deliveryModeAuthority` as `user_request:<reference>`. Otherwise keep `ITERATIVE_DELIVERY`.
 

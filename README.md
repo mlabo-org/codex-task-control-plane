@@ -86,7 +86,7 @@ Model or thinking overrides are omitted by default. They are accepted only when 
 
 ### Codex Activity Oversight state control
 
-Set `stateControl` to `codex-activity-oversight` and provide `stateControlScope` when a visible task should activate Codex Activity Oversight state control. The generated task prompt invokes `$codex-activity-oversight` only to:
+Set `stateControl` to `codex-activity-oversight` and provide `stateControlScope` when a visible task should activate Codex Activity Oversight state control. The active controller may choose it when durable state materially helps, including long-running or interruptible work and complex refactors; `none` remains the default and an explicit user choice of `none` is honored. An explicit request for `.CAO` state control also selects it. The generated task prompt invokes `$codex-activity-oversight` only to:
 
 - activate or reconcile the task's `.CAO` state;
 - keep state-control work inside the declared scope;
@@ -99,7 +99,7 @@ Visible tasks and official subagents are separate layers. Native Codex owns both
 - Codex desktop with the native task tools listed above
 - Node.js 22 or later (Node.js 24 is used in CI)
 - Git for worktree-backed worker isolation
-- Codex Activity Oversight only when `stateControl: codex-activity-oversight` is explicitly selected
+- Codex Activity Oversight when selected by the user or active controller for a visible task that benefits from durable state control
 
 The repository has no third-party runtime packages.
 
@@ -212,7 +212,7 @@ Codex のバージョンによって公開ツールは変わり得ます。ラ�
 
 ### Codex Activity Oversight 状態管制
 
-画面に見える task で Codex Activity Oversight の状態管制を有効にする場合、`stateControl` を `codex-activity-oversight` にし、`stateControlScope` を指定します。生成される指示は `$codex-activity-oversight` を状態管制用途だけで起動します。
+画面に見える task で Codex Activity Oversight の状態管制を有効にする場合、`stateControl` を `codex-activity-oversight` にし、`stateControlScope` を指定します。状態の保存が有効な長時間作業、中断・再開が見込まれる作業、大規模なリファクタなどでは、管制役が必要性を判断して選べます。既定値は `none` で、ユーザーが `none` を明示した場合はそれを維持します。ユーザーが `.CAO` を明示的に求めた場合も選択します。生成される指示は `$codex-activity-oversight` を状態管制用途だけで起動します。
 
 - task の `.CAO` 状態を有効化または整合させる。
 - 状態管制を宣言済みスコープの内側に限定する。
@@ -225,7 +225,7 @@ Codex のバージョンによって公開ツールは変わり得ます。ラ�
 - 上記の純正 task ツールを公開している Codex desktop
 - Node.js 22 以降（CI は Node.js 24）
 - worktree 分離を使う場合は Git
-- `stateControl: codex-activity-oversight` を明示選択した場合のみ Codex Activity Oversight
+- ユーザーまたは管制役が、表示 task の durable state 管制に必要と判断して `stateControl: codex-activity-oversight` を選択した場合に Codex Activity Oversight
 
 外部 runtime package への依存はありません。
 

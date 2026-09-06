@@ -55,7 +55,7 @@ const tools = new Map([
     "control_plane_add_task",
     {
       description:
-        "Add one complete visible-task contract. Native Codex owns execution; optional Codex Activity Oversight requires a declared state-control scope.",
+        "Add one complete visible-task contract. Native Codex owns execution; the active controller may select optional Codex Activity Oversight when durable state helps, and a selected state control requires a declared scope.",
       inputSchema: taskInputSchema(),
       handler: (args) => controlPlane.addTask(args)
     }
