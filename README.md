@@ -1,5 +1,9 @@
 # Codex Task Control Plane
 
+> **Development ended (2026-10-06).** This repository is archived and kept read-only so existing links keep working. Codex's native task tools now cover task creation, handoff, and supervision, and the author no longer uses this plugin. Issues and pull requests are closed.
+>
+> **開発終了（2026-10-06）。** このリポジトリはアーカイブ済みで、既存のリンクのために読み取り専用で残しています。タスクの作成・引き継ぎ・監督は Codex 本体の機能で足りるようになり、作者もこのプラグインを使っていません。Issue と Pull Request は受け付けていません。
+
 [English](#english) · [日本語](#日本語)
 
 Codex Task Control Plane is a Codex plugin for controlling the durable lifecycle of multiple **user-visible Codex tasks**. Native Codex tools own task creation, worktrees, messaging, waiting, handoff, official subagent execution, and sidebar state; this plugin adds a durable control ledger, validated call intents, settlement/reconciliation state, and a bilingual dashboard.
